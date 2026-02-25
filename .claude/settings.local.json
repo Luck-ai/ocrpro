@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd \"D:/ocr_tesserack/ocr_tesserackOcrTesseract\" && dotnet build 2>&1)",
+      "Bash(tail:*)",
+      "Bash(grep:*)",
+      "WebSearch"
+    ]
+  }
+}

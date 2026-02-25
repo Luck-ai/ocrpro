@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Emgu.CV" Version="4.12.0.5764" />
+    <PackageReference Include="Emgu.CV.Bitmap" Version="4.12.0.5764" />
+    <PackageReference Include="Emgu.CV.runtime.windows" Version="4.12.0.5764" />
+    <PackageReference Include="Microsoft.ML.OnnxRuntime.DirectML" Version="1.24.2" />
+    <PackageReference Include="OpenCvSharp4" Version="4.13.0.20260222" />
+    <PackageReference Include="OpenCvSharp4.runtime.win" Version="4.13.0.20260222" />
+    <PackageReference Include="Sdcb.PaddleInference.runtime.win64.mkl" Version="3.1.0.54" />
+    <PackageReference Include="Sdcb.PaddleOCR" Version="3.0.1" />
+    <PackageReference Include="Sdcb.PaddleOCR.Models.Local" Version="3.0.1" />
+    <PackageReference Include="Tesseract" Version="5.2.0" />
+  </ItemGroup>
+
+  <!-- Basler Pylon .NET SDK (installed with pylon runtime) -->
+  <ItemGroup>
+    <Reference Include="Basler.Pylon">
+      <HintPath>C:\Program Files\Basler\pylon\Development\Assemblies\Basler.Pylon\net8.0\x64\Basler.Pylon.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <!-- Copy all tessdata files to output directory -->
+  <ItemGroup>
+    <Content Include="tessdata\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+</Project>
