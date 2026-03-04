@@ -35,4 +35,11 @@
     </Content>
   </ItemGroup>
 
+  <!-- Copy PP-OCRv4 ONNX model files for RapidOCR engine -->
+  <ItemGroup>
+    <Content Include="models\ppocr\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>

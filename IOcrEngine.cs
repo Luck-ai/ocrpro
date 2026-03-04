@@ -22,4 +22,11 @@ enum OcrEngineType
     /// and supports custom tessdata for additional languages.
     /// </summary>
     Tesseract,
+
+    /// <summary>
+    /// RapidOCR — PP-OCRv4 mobile ONNX models via OnnxRuntime + DirectML.
+    /// Target: 5–20 ms on DirectML-capable GPU; falls back to CPU.
+    /// Requires models in models/ppocr/ (det, cls, rec ONNX + keys file).
+    /// </summary>
+    RapidOcr,
 }

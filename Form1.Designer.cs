@@ -20,10 +20,6 @@ partial class Form1
         InputCard = new Panel();
         lblTitleInputCard = new Label();
         btnLoadImage = new Button();
-        lblCameraSep = new Label();
-        cmbCamera = new ComboBox();
-        btnCamera = new Button();
-        btnCapture = new Button();
         EngineCard = new Panel();
         lblTitleEngineCard = new Label();
         cmbEngine = new ComboBox();
@@ -39,11 +35,9 @@ partial class Form1
         btnRunOcr = new Button();
         rightPanel = new Panel();
         pictureBox = new PictureBox();
-        lblFps = new Label();
         statusBar = new Panel();
         lblProcStatus = new Label();
         lblLighting = new Label();
-        lblCamStatus = new Label();
         mainTabs = new TabControl();
         tabOcr = new TabPage();
         tabPrep = new TabPage();
@@ -64,35 +58,53 @@ partial class Form1
         SuspendLayout();
         // 
         // leftScroll
+        // leftScroll holds btnRunOcr docked to bottom, and leftFlow (the cards) filling the rest
         // 
-        leftScroll.AutoScroll = true;
+        leftScroll.AutoScroll = false;
         leftScroll.BackColor = Color.FromArgb(28, 30, 36);
         leftScroll.Controls.Add(leftFlow);
+        leftScroll.Controls.Add(btnRunOcr);
         leftScroll.Dock = DockStyle.Left;
         leftScroll.Location = new Point(0, 0);
-        leftScroll.Margin = new Padding(6, 6, 6, 6);
+        leftScroll.Margin = new Padding(6);
         leftScroll.Name = "leftScroll";
         leftScroll.Padding = new Padding(0, 0, 7, 0);
         leftScroll.Size = new Size(631, 1231);
         leftScroll.TabIndex = 0;
         // 
-        // leftFlow
+        // btnRunOcr  (docked to bottom of leftScroll)
         // 
-        leftFlow.AutoSize = true;
-        leftFlow.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        btnRunOcr.BackColor = Color.FromArgb(57, 255, 20);
+        btnRunOcr.Cursor = Cursors.Hand;
+        btnRunOcr.Dock = DockStyle.Bottom;
+        btnRunOcr.FlatAppearance.BorderSize = 0;
+        btnRunOcr.FlatStyle = FlatStyle.Flat;
+        btnRunOcr.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+        btnRunOcr.ForeColor = Color.Black;
+        btnRunOcr.Margin = new Padding(0);
+        btnRunOcr.Name = "btnRunOcr";
+        btnRunOcr.Size = new Size(624, 77);
+        btnRunOcr.TabIndex = 1;
+        btnRunOcr.Text = "Run OCR";
+        btnRunOcr.UseVisualStyleBackColor = false;
+        btnRunOcr.Click += btnRunOcr_Click;
+        // 
+        // leftFlow  (scrollable cards area above the button)
+        // 
+        leftFlow.AutoScroll = true;
+        leftFlow.AutoSize = false;
         leftFlow.BackColor = Color.FromArgb(28, 30, 36);
         leftFlow.Controls.Add(InputCard);
         leftFlow.Controls.Add(EngineCard);
         leftFlow.Controls.Add(TimingCard);
         leftFlow.Controls.Add(resultsScroll);
         leftFlow.Controls.Add(RawOcrCard);
-        leftFlow.Controls.Add(btnRunOcr);
-        leftFlow.Dock = DockStyle.Top;
+        leftFlow.Dock = DockStyle.Fill;
         leftFlow.FlowDirection = FlowDirection.TopDown;
         leftFlow.Location = new Point(0, 0);
-        leftFlow.Margin = new Padding(6, 6, 6, 6);
+        leftFlow.Margin = new Padding(6);
         leftFlow.Name = "leftFlow";
-        leftFlow.Size = new Size(590, 1659);
+        leftFlow.Padding = new Padding(0, 6, 0, 6);
         leftFlow.TabIndex = 0;
         leftFlow.WrapContents = false;
         // 
@@ -101,16 +113,12 @@ partial class Form1
         InputCard.BackColor = Color.FromArgb(36, 39, 46);
         InputCard.Controls.Add(lblTitleInputCard);
         InputCard.Controls.Add(btnLoadImage);
-        InputCard.Controls.Add(lblCameraSep);
-        InputCard.Controls.Add(cmbCamera);
-        InputCard.Controls.Add(btnCamera);
-        InputCard.Controls.Add(btnCapture);
-        InputCard.Location = new Point(0, 0);
+        InputCard.Location = new Point(0, 6);
         InputCard.Margin = new Padding(0, 0, 0, 13);
         InputCard.Name = "InputCard";
-        InputCard.Size = new Size(594, 320);
+        InputCard.Size = new Size(594, 140);
         InputCard.TabIndex = 0;
-        InputCard.Paint += this.CardBorderPaint;
+        InputCard.Paint += CardBorderPaint;
         // 
         // lblTitleInputCard
         // 
@@ -133,7 +141,7 @@ partial class Form1
         btnLoadImage.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
         btnLoadImage.ForeColor = Color.FromArgb(220, 220, 220);
         btnLoadImage.Location = new Point(19, 64);
-        btnLoadImage.Margin = new Padding(6, 6, 6, 6);
+        btnLoadImage.Margin = new Padding(6);
         btnLoadImage.Name = "btnLoadImage";
         btnLoadImage.Size = new Size(557, 55);
         btnLoadImage.TabIndex = 1;
@@ -141,82 +149,18 @@ partial class Form1
         btnLoadImage.UseVisualStyleBackColor = false;
         btnLoadImage.Click += btnLoadImage_Click;
         // 
-        // lblCameraSep
-        // 
-        lblCameraSep.AutoSize = true;
-        lblCameraSep.Font = new Font("Consolas", 8F);
-        lblCameraSep.ForeColor = Color.FromArgb(140, 145, 155);
-        lblCameraSep.Location = new Point(19, 137);
-        lblCameraSep.Margin = new Padding(6, 0, 6, 0);
-        lblCameraSep.Name = "lblCameraSep";
-        lblCameraSep.Size = new Size(84, 26);
-        lblCameraSep.TabIndex = 2;
-        lblCameraSep.Text = "Camera";
-        // 
-        // cmbCamera
-        // 
-        cmbCamera.BackColor = Color.FromArgb(36, 39, 46);
-        cmbCamera.DrawMode = DrawMode.OwnerDrawFixed;
-        cmbCamera.DropDownHeight = 200;
-        cmbCamera.DropDownStyle = ComboBoxStyle.DropDownList;
-        cmbCamera.FlatStyle = FlatStyle.Flat;
-        cmbCamera.ForeColor = Color.FromArgb(220, 220, 220);
-        cmbCamera.IntegralHeight = false;
-        cmbCamera.ItemHeight = 32;
-        cmbCamera.Location = new Point(19, 175);
-        cmbCamera.Margin = new Padding(6, 6, 6, 6);
-        cmbCamera.Name = "cmbCamera";
-        cmbCamera.Size = new Size(554, 26);
-        cmbCamera.TabIndex = 3;
-        cmbCamera.DrawItem += cmb_DrawItem;
-        // 
-        // btnCamera
-        // 
-        btnCamera.BackColor = Color.FromArgb(48, 52, 62);
-        btnCamera.Cursor = Cursors.Hand;
-        btnCamera.FlatAppearance.BorderColor = Color.FromArgb(55, 60, 70);
-        btnCamera.FlatStyle = FlatStyle.Flat;
-        btnCamera.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-        btnCamera.ForeColor = Color.FromArgb(220, 220, 220);
-        btnCamera.Location = new Point(19, 247);
-        btnCamera.Margin = new Padding(6, 6, 6, 6);
-        btnCamera.Name = "btnCamera";
-        btnCamera.Size = new Size(271, 55);
-        btnCamera.TabIndex = 4;
-        btnCamera.Text = "Start";
-        btnCamera.UseVisualStyleBackColor = false;
-        btnCamera.Click += btnCamera_Click;
-        // 
-        // btnCapture
-        // 
-        btnCapture.BackColor = Color.FromArgb(0, 120, 200);
-        btnCapture.Cursor = Cursors.Hand;
-        btnCapture.Enabled = false;
-        btnCapture.FlatAppearance.BorderSize = 0;
-        btnCapture.FlatStyle = FlatStyle.Flat;
-        btnCapture.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-        btnCapture.ForeColor = Color.White;
-        btnCapture.Location = new Point(305, 247);
-        btnCapture.Margin = new Padding(6, 6, 6, 6);
-        btnCapture.Name = "btnCapture";
-        btnCapture.Size = new Size(271, 55);
-        btnCapture.TabIndex = 5;
-        btnCapture.Text = "Capture & OCR";
-        btnCapture.UseVisualStyleBackColor = false;
-        btnCapture.Click += btnCapture_Click;
-        // 
         // EngineCard
         // 
         EngineCard.BackColor = Color.FromArgb(36, 39, 46);
         EngineCard.Controls.Add(lblTitleEngineCard);
         EngineCard.Controls.Add(cmbEngine);
         EngineCard.Controls.Add(chkEnablePrep);
-        EngineCard.Location = new Point(0, 333);
+        EngineCard.Location = new Point(0, 153);
         EngineCard.Margin = new Padding(0, 0, 0, 13);
         EngineCard.Name = "EngineCard";
         EngineCard.Size = new Size(594, 203);
         EngineCard.TabIndex = 0;
-        EngineCard.Paint += this.CardBorderPaint;
+        EngineCard.Paint += CardBorderPaint;
         // 
         // lblTitleEngineCard
         // 
@@ -240,11 +184,11 @@ partial class Form1
         cmbEngine.ForeColor = Color.FromArgb(220, 220, 220);
         cmbEngine.IntegralHeight = false;
         cmbEngine.ItemHeight = 32;
-        cmbEngine.Items.AddRange(new object[] { "WinRT  (~5–20 ms)", "PaddleOCR  (~200–500 ms)", "Tesseract  (~700 ms)" });
+        cmbEngine.Items.AddRange(new object[] { "WinRT  (~5–20 ms)", "RapidOCR  (~5–50 ms)", "PaddleOCR  (~200–500 ms)", "Tesseract  (~700 ms)" });
         cmbEngine.Location = new Point(19, 64);
-        cmbEngine.Margin = new Padding(6, 6, 6, 6);
+        cmbEngine.Margin = new Padding(6);
         cmbEngine.Name = "cmbEngine";
-        cmbEngine.Size = new Size(554, 26);
+        cmbEngine.Size = new Size(554, 38);
         cmbEngine.TabIndex = 1;
         cmbEngine.DrawItem += cmb_DrawItem;
         // 
@@ -257,7 +201,7 @@ partial class Form1
         chkEnablePrep.Font = new Font("Segoe UI", 9F);
         chkEnablePrep.ForeColor = Color.FromArgb(220, 220, 220);
         chkEnablePrep.Location = new Point(19, 137);
-        chkEnablePrep.Margin = new Padding(6, 6, 6, 6);
+        chkEnablePrep.Margin = new Padding(6);
         chkEnablePrep.Name = "chkEnablePrep";
         chkEnablePrep.Size = new Size(272, 36);
         chkEnablePrep.TabIndex = 2;
@@ -269,12 +213,12 @@ partial class Form1
         TimingCard.BackColor = Color.FromArgb(36, 39, 46);
         TimingCard.Controls.Add(lblProcLabel);
         TimingCard.Controls.Add(lblProcTime);
-        TimingCard.Location = new Point(0, 549);
+        TimingCard.Location = new Point(0, 369);
         TimingCard.Margin = new Padding(0, 0, 0, 13);
         TimingCard.Name = "TimingCard";
         TimingCard.Size = new Size(594, 192);
         TimingCard.TabIndex = 0;
-        TimingCard.Paint += this.CardBorderPaint;
+        TimingCard.Paint += CardBorderPaint;
         // 
         // lblProcLabel
         // 
@@ -304,10 +248,10 @@ partial class Form1
         resultsScroll.AutoScroll = true;
         resultsScroll.BackColor = Color.FromArgb(28, 30, 36);
         resultsScroll.Controls.Add(resultsFlow);
-        resultsScroll.Location = new Point(0, 754);
+        resultsScroll.Location = new Point(0, 574);
         resultsScroll.Margin = new Padding(0, 0, 0, 13);
         resultsScroll.Name = "resultsScroll";
-        resultsScroll.Size = new Size(594, 427);
+        resultsScroll.Size = new Size(594, 300);
         resultsScroll.TabIndex = 0;
         // 
         // resultsFlow
@@ -318,7 +262,7 @@ partial class Form1
         resultsFlow.Dock = DockStyle.Top;
         resultsFlow.FlowDirection = FlowDirection.TopDown;
         resultsFlow.Location = new Point(0, 0);
-        resultsFlow.Margin = new Padding(6, 6, 6, 6);
+        resultsFlow.Margin = new Padding(6);
         resultsFlow.Name = "resultsFlow";
         resultsFlow.Padding = new Padding(0, 4, 0, 0);
         resultsFlow.Size = new Size(594, 4);
@@ -330,12 +274,12 @@ partial class Form1
         RawOcrCard.BackColor = Color.FromArgb(36, 39, 46);
         RawOcrCard.Controls.Add(lblTitleRawOcrCard);
         RawOcrCard.Controls.Add(txtRawOcr);
-        RawOcrCard.Location = new Point(0, 1194);
+        RawOcrCard.Location = new Point(0, 887);
         RawOcrCard.Margin = new Padding(0, 0, 0, 13);
         RawOcrCard.Name = "RawOcrCard";
-        RawOcrCard.Size = new Size(594, 341);
+        RawOcrCard.Size = new Size(594, 320);
         RawOcrCard.TabIndex = 0;
-        RawOcrCard.Paint += this.CardBorderPaint;
+        RawOcrCard.Paint += CardBorderPaint;
         // 
         // lblTitleRawOcrCard
         // 
@@ -353,45 +297,27 @@ partial class Form1
         // 
         txtRawOcr.BackColor = Color.FromArgb(24, 26, 32);
         txtRawOcr.BorderStyle = BorderStyle.None;
-        txtRawOcr.Font = new Font("Consolas", 8F);
+        txtRawOcr.Font = new Font("Consolas", 11F);
         txtRawOcr.ForeColor = Color.FromArgb(220, 220, 220);
         txtRawOcr.Location = new Point(19, 64);
-        txtRawOcr.Margin = new Padding(6, 6, 6, 6);
+        txtRawOcr.Margin = new Padding(6);
         txtRawOcr.Multiline = true;
         txtRawOcr.Name = "txtRawOcr";
         txtRawOcr.ReadOnly = true;
-        txtRawOcr.ScrollBars = ScrollBars.Vertical;
-        txtRawOcr.Size = new Size(557, 256);
+        txtRawOcr.ScrollBars = ScrollBars.None;
+        txtRawOcr.Size = new Size(557, 240);
         txtRawOcr.TabIndex = 1;
         txtRawOcr.Text = "(run OCR to see raw output)";
-        // 
-        // btnRunOcr
-        // 
-        btnRunOcr.BackColor = Color.FromArgb(57, 255, 20);
-        btnRunOcr.Cursor = Cursors.Hand;
-        btnRunOcr.FlatAppearance.BorderSize = 0;
-        btnRunOcr.FlatStyle = FlatStyle.Flat;
-        btnRunOcr.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-        btnRunOcr.ForeColor = Color.Black;
-        btnRunOcr.Location = new Point(0, 1565);
-        btnRunOcr.Margin = new Padding(0, 17, 0, 0);
-        btnRunOcr.Name = "btnRunOcr";
-        btnRunOcr.Size = new Size(594, 77);
-        btnRunOcr.TabIndex = 0;
-        btnRunOcr.Text = "Run OCR";
-        btnRunOcr.UseVisualStyleBackColor = false;
-        btnRunOcr.Click += btnRunOcr_Click;
         // 
         // rightPanel
         // 
         rightPanel.BackColor = Color.FromArgb(36, 39, 46);
         rightPanel.Controls.Add(pictureBox);
-        rightPanel.Controls.Add(lblFps);
         rightPanel.Dock = DockStyle.Fill;
         rightPanel.Location = new Point(631, 0);
-        rightPanel.Margin = new Padding(6, 6, 6, 6);
+        rightPanel.Margin = new Padding(6);
         rightPanel.Name = "rightPanel";
-        rightPanel.Padding = new Padding(4, 4, 4, 4);
+        rightPanel.Padding = new Padding(4);
         rightPanel.Size = new Size(1356, 1231);
         rightPanel.TabIndex = 1;
         rightPanel.Paint += RightPanel_Paint;
@@ -402,37 +328,21 @@ partial class Form1
         pictureBox.BackColor = Color.Transparent;
         pictureBox.Dock = DockStyle.Fill;
         pictureBox.Location = new Point(4, 4);
-        pictureBox.Margin = new Padding(6, 6, 6, 6);
+        pictureBox.Margin = new Padding(6);
         pictureBox.Name = "pictureBox";
         pictureBox.Size = new Size(1348, 1223);
         pictureBox.SizeMode = PictureBoxSizeMode.Zoom;
         pictureBox.TabIndex = 0;
         pictureBox.TabStop = false;
         // 
-        // lblFps
-        // 
-        lblFps.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-        lblFps.AutoSize = true;
-        lblFps.BackColor = Color.FromArgb(57, 255, 20);
-        lblFps.Font = new Font("Consolas", 9F, FontStyle.Bold);
-        lblFps.ForeColor = Color.Black;
-        lblFps.Location = new Point(520, 21);
-        lblFps.Margin = new Padding(6, 0, 6, 0);
-        lblFps.Name = "lblFps";
-        lblFps.Padding = new Padding(11, 6, 11, 6);
-        lblFps.Size = new Size(125, 40);
-        lblFps.TabIndex = 1;
-        lblFps.Text = "FPS: --";
-        // 
         // statusBar
         // 
         statusBar.BackColor = Color.FromArgb(20, 22, 27);
         statusBar.Controls.Add(lblProcStatus);
         statusBar.Controls.Add(lblLighting);
-        statusBar.Controls.Add(lblCamStatus);
         statusBar.Dock = DockStyle.Bottom;
         statusBar.Location = new Point(0, 1278);
-        statusBar.Margin = new Padding(6, 6, 6, 6);
+        statusBar.Margin = new Padding(6);
         statusBar.Name = "statusBar";
         statusBar.Padding = new Padding(22, 0, 22, 0);
         statusBar.Size = new Size(1995, 64);
@@ -456,26 +366,13 @@ partial class Form1
         lblLighting.Dock = DockStyle.Left;
         lblLighting.Font = new Font("Segoe UI", 9F);
         lblLighting.ForeColor = Color.FromArgb(0, 200, 83);
-        lblLighting.Location = new Point(579, 0);
+        lblLighting.Location = new Point(22, 0);
         lblLighting.Margin = new Padding(6, 0, 6, 0);
         lblLighting.Name = "lblLighting";
         lblLighting.Size = new Size(241, 64);
         lblLighting.TabIndex = 1;
         lblLighting.Text = "✓ Lighting OK";
         lblLighting.TextAlign = ContentAlignment.MiddleLeft;
-        // 
-        // lblCamStatus
-        // 
-        lblCamStatus.Dock = DockStyle.Left;
-        lblCamStatus.Font = new Font("Segoe UI", 9F);
-        lblCamStatus.ForeColor = Color.FromArgb(140, 145, 155);
-        lblCamStatus.Location = new Point(22, 0);
-        lblCamStatus.Margin = new Padding(6, 0, 6, 0);
-        lblCamStatus.Name = "lblCamStatus";
-        lblCamStatus.Size = new Size(557, 64);
-        lblCamStatus.TabIndex = 0;
-        lblCamStatus.Text = "● Camera: Disconnected";
-        lblCamStatus.TextAlign = ContentAlignment.MiddleLeft;
         // 
         // mainTabs
         // 
@@ -484,7 +381,7 @@ partial class Form1
         mainTabs.Dock = DockStyle.Fill;
         mainTabs.DrawMode = TabDrawMode.OwnerDrawFixed;
         mainTabs.Location = new Point(0, 0);
-        mainTabs.Margin = new Padding(6, 6, 6, 6);
+        mainTabs.Margin = new Padding(6);
         mainTabs.Name = "mainTabs";
         mainTabs.Padding = new Point(12, 4);
         mainTabs.SelectedIndex = 0;
@@ -494,11 +391,12 @@ partial class Form1
         // 
         // tabOcr
         // 
-        tabOcr.BackColor = Color.FromArgb(28, 30, 36);
+        tabOcr.BackColor = Color.White;
         tabOcr.Controls.Add(rightPanel);
         tabOcr.Controls.Add(leftScroll);
+        tabOcr.ForeColor = Color.Black;
         tabOcr.Location = new Point(4, 43);
-        tabOcr.Margin = new Padding(6, 6, 6, 6);
+        tabOcr.Margin = new Padding(6);
         tabOcr.Name = "tabOcr";
         tabOcr.Size = new Size(1987, 1231);
         tabOcr.TabIndex = 0;
@@ -506,12 +404,13 @@ partial class Form1
         // 
         // tabPrep
         // 
-        tabPrep.BackColor = Color.FromArgb(28, 30, 36);
+        tabPrep.BackColor = Color.White;
         tabPrep.Controls.Add(prepTab);
+        tabPrep.ForeColor = Color.Black;
         tabPrep.Location = new Point(4, 43);
-        tabPrep.Margin = new Padding(6, 6, 6, 6);
+        tabPrep.Margin = new Padding(6);
         tabPrep.Name = "tabPrep";
-        tabPrep.Size = new Size(363, 166);
+        tabPrep.Size = new Size(1987, 1231);
         tabPrep.TabIndex = 1;
         tabPrep.Text = "  Preprocessing  ";
         // 
@@ -522,7 +421,7 @@ partial class Form1
         prepTab.Location = new Point(0, 0);
         prepTab.Margin = new Padding(6, 6, 6, 6);
         prepTab.Name = "prepTab";
-        prepTab.Size = new Size(363, 166);
+        prepTab.Size = new Size(1987, 1231);
         prepTab.TabIndex = 0;
         prepTab.UseAsOcrInput += PrepTab_UseAsOcrInput;
         // 
@@ -536,13 +435,12 @@ partial class Form1
         Controls.Add(statusBar);
         Font = new Font("Segoe UI", 9F);
         ForeColor = Color.FromArgb(220, 220, 220);
-        Margin = new Padding(6, 6, 6, 6);
+        Margin = new Padding(6);
         MinimumSize = new Size(1835, 1285);
         Name = "Form1";
         StartPosition = FormStartPosition.CenterScreen;
         Text = "TesseractOCR Pro - v1.0";
         leftScroll.ResumeLayout(false);
-        leftScroll.PerformLayout();
         leftFlow.ResumeLayout(false);
         InputCard.ResumeLayout(false);
         InputCard.PerformLayout();
@@ -554,7 +452,6 @@ partial class Form1
         RawOcrCard.ResumeLayout(false);
         RawOcrCard.PerformLayout();
         rightPanel.ResumeLayout(false);
-        rightPanel.PerformLayout();
         ((System.ComponentModel.ISupportInitialize)pictureBox).EndInit();
         statusBar.ResumeLayout(false);
         mainTabs.ResumeLayout(false);
@@ -575,7 +472,7 @@ partial class Form1
 
     private void rightPanel_Resize(object sender, System.EventArgs e)
     {
-        lblFps.Location = new System.Drawing.Point(rightPanel.ClientSize.Width - lblFps.Width - 10, 10);
+        // no overlay label to reposition
     }
 
     private void CardBorderPaint(object sender, System.Windows.Forms.PaintEventArgs e)
@@ -621,7 +518,6 @@ partial class Form1
     private System.Windows.Forms.FlowLayoutPanel leftFlow = null!;
     private System.Windows.Forms.Panel InputCard = null!;
     private System.Windows.Forms.Label lblTitleInputCard = null!;
-    private System.Windows.Forms.Label lblCameraSep = null!;
     private System.Windows.Forms.Panel EngineCard = null!;
     private System.Windows.Forms.Label lblTitleEngineCard = null!;
     private System.Windows.Forms.Panel TimingCard = null!;
@@ -634,15 +530,10 @@ partial class Form1
     private System.Windows.Forms.Panel resultsScroll = null!;
     private System.Windows.Forms.Button btnRunOcr = null!;
     private System.Windows.Forms.Button btnLoadImage = null!;
-    private System.Windows.Forms.Button btnCamera = null!;
-    private System.Windows.Forms.Button btnCapture = null!;
     private System.Windows.Forms.ComboBox cmbEngine = null!;
-    private System.Windows.Forms.ComboBox cmbCamera = null!;
     private System.Windows.Forms.CheckBox chkEnablePrep = null!;
     private System.Windows.Forms.Panel rightPanel = null!;
     private System.Windows.Forms.PictureBox pictureBox = null!;
-    private System.Windows.Forms.Label lblFps = null!;
-    private System.Windows.Forms.Label lblCamStatus = null!;
     private System.Windows.Forms.Label lblLighting = null!;
     private System.Windows.Forms.Label lblProcStatus = null!;
     private System.Windows.Forms.TextBox txtRawOcr = null!;
