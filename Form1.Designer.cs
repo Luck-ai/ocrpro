@@ -1,4 +1,4 @@
-namespace OcrTesseract;
+namespace OcrPro;
 
 partial class Form1
 {
@@ -23,7 +23,6 @@ partial class Form1
         EngineCard = new Panel();
         lblTitleEngineCard = new Label();
         cmbEngine = new ComboBox();
-        chkEnablePrep = new CheckBox();
         TimingCard = new Panel();
         lblProcLabel = new Label();
         lblProcTime = new Label();
@@ -38,10 +37,6 @@ partial class Form1
         statusBar = new Panel();
         lblProcStatus = new Label();
         lblLighting = new Label();
-        mainTabs = new TabControl();
-        tabOcr = new TabPage();
-        tabPrep = new TabPage();
-        prepTab = new PreprocessingTab();
         leftScroll.SuspendLayout();
         leftFlow.SuspendLayout();
         InputCard.SuspendLayout();
@@ -52,9 +47,6 @@ partial class Form1
         rightPanel.SuspendLayout();
         ((System.ComponentModel.ISupportInitialize)pictureBox).BeginInit();
         statusBar.SuspendLayout();
-        mainTabs.SuspendLayout();
-        tabOcr.SuspendLayout();
-        tabPrep.SuspendLayout();
         SuspendLayout();
         // 
         // leftScroll
@@ -154,11 +146,10 @@ partial class Form1
         EngineCard.BackColor = Color.FromArgb(36, 39, 46);
         EngineCard.Controls.Add(lblTitleEngineCard);
         EngineCard.Controls.Add(cmbEngine);
-        EngineCard.Controls.Add(chkEnablePrep);
         EngineCard.Location = new Point(0, 153);
         EngineCard.Margin = new Padding(0, 0, 0, 13);
         EngineCard.Name = "EngineCard";
-        EngineCard.Size = new Size(594, 203);
+        EngineCard.Size = new Size(594, 140);
         EngineCard.TabIndex = 0;
         EngineCard.Paint += CardBorderPaint;
         // 
@@ -184,36 +175,21 @@ partial class Form1
         cmbEngine.ForeColor = Color.FromArgb(220, 220, 220);
         cmbEngine.IntegralHeight = false;
         cmbEngine.ItemHeight = 32;
-        cmbEngine.Items.AddRange(new object[] { "1  WinRT  (~5–20 ms)", "2  RapidOCR  (~5–50 ms)", "3  PaddleOCR V4  (~200–500 ms)", "4  Tesseract  (~700 ms)", "5  Tesseract Fast  (~200 ms)" });
+        cmbEngine.Items.AddRange(new object[] { "1  WinRT  (~5–20 ms)", "2  PaddleOCR V4  (~200–500 ms)" });
         cmbEngine.Location = new Point(19, 64);
         cmbEngine.Margin = new Padding(6);
         cmbEngine.Name = "cmbEngine";
         cmbEngine.Size = new Size(554, 38);
         cmbEngine.TabIndex = 1;
+        cmbEngine.SelectedIndex = 0;
         cmbEngine.DrawItem += cmb_DrawItem;
-        // 
-        // chkEnablePrep
-        // 
-        chkEnablePrep.AutoSize = true;
-        chkEnablePrep.BackColor = Color.FromArgb(36, 39, 46);
-        chkEnablePrep.Checked = true;
-        chkEnablePrep.CheckState = CheckState.Checked;
-        chkEnablePrep.Font = new Font("Segoe UI", 9F);
-        chkEnablePrep.ForeColor = Color.FromArgb(220, 220, 220);
-        chkEnablePrep.Location = new Point(19, 137);
-        chkEnablePrep.Margin = new Padding(6);
-        chkEnablePrep.Name = "chkEnablePrep";
-        chkEnablePrep.Size = new Size(272, 36);
-        chkEnablePrep.TabIndex = 2;
-        chkEnablePrep.Text = "Enable Preprocessing";
-        chkEnablePrep.UseVisualStyleBackColor = false;
         // 
         // TimingCard
         // 
         TimingCard.BackColor = Color.FromArgb(36, 39, 46);
         TimingCard.Controls.Add(lblProcLabel);
         TimingCard.Controls.Add(lblProcTime);
-        TimingCard.Location = new Point(0, 369);
+        TimingCard.Location = new Point(0, 306);
         TimingCard.Margin = new Padding(0, 0, 0, 13);
         TimingCard.Name = "TimingCard";
         TimingCard.Size = new Size(594, 192);
@@ -248,7 +224,7 @@ partial class Form1
         resultsScroll.AutoScroll = true;
         resultsScroll.BackColor = Color.FromArgb(28, 30, 36);
         resultsScroll.Controls.Add(resultsFlow);
-        resultsScroll.Location = new Point(0, 574);
+        resultsScroll.Location = new Point(0, 511);
         resultsScroll.Margin = new Padding(0, 0, 0, 13);
         resultsScroll.Name = "resultsScroll";
         resultsScroll.Size = new Size(594, 300);
@@ -274,7 +250,7 @@ partial class Form1
         RawOcrCard.BackColor = Color.FromArgb(36, 39, 46);
         RawOcrCard.Controls.Add(lblTitleRawOcrCard);
         RawOcrCard.Controls.Add(txtRawOcr);
-        RawOcrCard.Location = new Point(0, 887);
+        RawOcrCard.Location = new Point(0, 824);
         RawOcrCard.Margin = new Padding(0, 0, 0, 13);
         RawOcrCard.Name = "RawOcrCard";
         RawOcrCard.Size = new Size(594, 320);
@@ -291,7 +267,7 @@ partial class Form1
         lblTitleRawOcrCard.Name = "lblTitleRawOcrCard";
         lblTitleRawOcrCard.Size = new Size(241, 32);
         lblTitleRawOcrCard.TabIndex = 0;
-        lblTitleRawOcrCard.Text = "4 · Raw OCR Output";
+        lblTitleRawOcrCard.Text = "3 · Raw OCR Output";
         // 
         // txtRawOcr
         // 
@@ -374,64 +350,14 @@ partial class Form1
         lblLighting.Text = "✓ Lighting OK";
         lblLighting.TextAlign = ContentAlignment.MiddleLeft;
         // 
-        // mainTabs
-        // 
-        mainTabs.Controls.Add(tabOcr);
-        mainTabs.Controls.Add(tabPrep);
-        mainTabs.Dock = DockStyle.Fill;
-        mainTabs.DrawMode = TabDrawMode.OwnerDrawFixed;
-        mainTabs.Location = new Point(0, 0);
-        mainTabs.Margin = new Padding(6);
-        mainTabs.Name = "mainTabs";
-        mainTabs.Padding = new Point(12, 4);
-        mainTabs.SelectedIndex = 0;
-        mainTabs.Size = new Size(1995, 1278);
-        mainTabs.TabIndex = 0;
-        mainTabs.DrawItem += MainTabs_DrawItem;
-        // 
-        // tabOcr
-        // 
-        tabOcr.BackColor = Color.White;
-        tabOcr.Controls.Add(rightPanel);
-        tabOcr.Controls.Add(leftScroll);
-        tabOcr.ForeColor = Color.Black;
-        tabOcr.Location = new Point(4, 43);
-        tabOcr.Margin = new Padding(6);
-        tabOcr.Name = "tabOcr";
-        tabOcr.Size = new Size(1987, 1231);
-        tabOcr.TabIndex = 0;
-        tabOcr.Text = "  OCR  ";
-        // 
-        // tabPrep
-        // 
-        tabPrep.BackColor = Color.White;
-        tabPrep.Controls.Add(prepTab);
-        tabPrep.ForeColor = Color.Black;
-        tabPrep.Location = new Point(4, 43);
-        tabPrep.Margin = new Padding(6);
-        tabPrep.Name = "tabPrep";
-        tabPrep.Size = new Size(1987, 1231);
-        tabPrep.TabIndex = 1;
-        tabPrep.Text = "  Preprocessing  ";
-        // 
-        // prepTab
-        // 
-        prepTab.BackColor = Color.FromArgb(28, 30, 36);
-        prepTab.Dock = DockStyle.Fill;
-        prepTab.Location = new Point(0, 0);
-        prepTab.Margin = new Padding(6, 6, 6, 6);
-        prepTab.Name = "prepTab";
-        prepTab.Size = new Size(1987, 1231);
-        prepTab.TabIndex = 0;
-        prepTab.UseAsOcrInput += PrepTab_UseAsOcrInput;
-        // 
         // Form1
         // 
         AutoScaleDimensions = new SizeF(13F, 32F);
         AutoScaleMode = AutoScaleMode.Font;
         BackColor = Color.FromArgb(28, 30, 36);
         ClientSize = new Size(1995, 1342);
-        Controls.Add(mainTabs);
+        Controls.Add(rightPanel);
+        Controls.Add(leftScroll);
         Controls.Add(statusBar);
         Font = new Font("Segoe UI", 9F);
         ForeColor = Color.FromArgb(220, 220, 220);
@@ -439,7 +365,7 @@ partial class Form1
         MinimumSize = new Size(1835, 1285);
         Name = "Form1";
         StartPosition = FormStartPosition.CenterScreen;
-        Text = "TesseractOCR Pro - v1.0";
+        Text = "OCR Pro";
         leftScroll.ResumeLayout(false);
         leftFlow.ResumeLayout(false);
         InputCard.ResumeLayout(false);
@@ -454,9 +380,6 @@ partial class Form1
         rightPanel.ResumeLayout(false);
         ((System.ComponentModel.ISupportInitialize)pictureBox).EndInit();
         statusBar.ResumeLayout(false);
-        mainTabs.ResumeLayout(false);
-        tabOcr.ResumeLayout(false);
-        tabPrep.ResumeLayout(false);
         ResumeLayout(false);
     }
 
@@ -512,8 +435,6 @@ partial class Form1
     #endregion
 
     // ── Field declarations ────────────────────────────────────────────────────
-    private System.Windows.Forms.TabControl mainTabs = null!;
-    private PreprocessingTab prepTab = null!;
     private System.Windows.Forms.Panel leftScroll = null!;
     private System.Windows.Forms.FlowLayoutPanel leftFlow = null!;
     private System.Windows.Forms.Panel InputCard = null!;
@@ -531,12 +452,9 @@ partial class Form1
     private System.Windows.Forms.Button btnRunOcr = null!;
     private System.Windows.Forms.Button btnLoadImage = null!;
     private System.Windows.Forms.ComboBox cmbEngine = null!;
-    private System.Windows.Forms.CheckBox chkEnablePrep = null!;
     private System.Windows.Forms.Panel rightPanel = null!;
     private System.Windows.Forms.PictureBox pictureBox = null!;
     private System.Windows.Forms.Label lblLighting = null!;
     private System.Windows.Forms.Label lblProcStatus = null!;
     private System.Windows.Forms.TextBox txtRawOcr = null!;
-    private TabPage tabOcr;
-    private TabPage tabPrep;
 }

@@ -361,3 +361,9 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Windows reserved device name (cannot be deleted, must be ignored)
+/nul
+
+# Temp scripts
+delete_nul.ps1

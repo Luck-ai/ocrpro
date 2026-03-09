@@ -1,20 +1,20 @@
 using System.ComponentModel;
 using System.Diagnostics;
-using System.Drawing.Imaging;
-using Emgu.CV;
-using Emgu.CV.CvEnum;
-using Emgu.CV.Structure;
-using Emgu.CV.Util;
-using Tesseract;
+using System.Runtime.InteropServices;
 
-namespace OcrTesseract;
+namespace OcrPro;
 
 // ── OCR result data ───────────────────────────────────────────────────────────
-record OcrResult(string RawText, float Confidence, long ElapsedMs,
+record OcrResult(string RawText, long ElapsedMs,
                  IReadOnlyList<RoiMatch> Rois, IReadOnlyList<WordEntry> Words);
 
 public partial class Form1 : Form
 {
+    [DllImport("user32.dll")] static extern bool ShowScrollBar(IntPtr hWnd, int wBar, bool bShow);
+    private const int SB_VERT = 1;
+    private const int SB_BOTH = 3;
+    private static void HideScrollBars(Control c) =>
+        ShowScrollBar(c.Handle, SB_BOTH, false);
     // ── Colours reused for result cards ──────────────────────────────────────
     private static readonly Color ClrPanel     = Color.FromArgb(36, 39, 46);
     private static readonly Color ClrBorder    = Color.FromArgb(55, 60, 70);
@@ -43,18 +43,43 @@ public partial class Form1 : Form
     private static readonly OcrEngineType[] EngineOrder =
     {
         OcrEngineType.WinRt,
-        OcrEngineType.RapidOcr,
         OcrEngineType.PaddleOcr,
-        OcrEngineType.Tesseract,
-        OcrEngineType.TesseractFast,
     };
 
     public Form1()
     {
         InitializeComponent();
         Load              += Form1_Load;
+        Shown             += (_, _) => PaddleOcrEngine.WarmUpInBackground();
         FormClosing       += Form1_FormClosing;
         resultsScroll.Resize += (_, _) => { if (_lastResult != null) RenderResultCards(_lastResult); };
+        leftFlow.ClientSizeChanged += (_, _) => SyncRawOcrCardHeight();
+        leftScroll.ClientSizeChanged += (_, _) => SyncRawOcrCardHeight();
+        // Hide scrollbars whenever layout is recalculated
+        resultsScroll.Layout += (_, _) => HideScrollBars(resultsScroll);
+        leftFlow.Layout      += (_, _) => HideScrollBars(leftFlow);
+        leftScroll.Layout    += (_, _) => HideScrollBars(leftScroll);
+    }
+
+    // Resize RawOcrCard to fill all remaining vertical space in leftFlow above the Run OCR button.
+    private void SyncRawOcrCardHeight()
+    {
+        // Sum the heights of all cards above RawOcrCard
+        int used = 0;
+        foreach (Control c in leftFlow.Controls)
+        {
+            if (c == RawOcrCard) break;
+            used += c.Height + c.Margin.Vertical;
+        }
+        used += leftFlow.Padding.Vertical;
+
+        int available = leftScroll.ClientSize.Height - btnRunOcr.Height - used;
+        int newCardH  = Math.Max(available, 120);
+
+        if (RawOcrCard.Height == newCardH) return;
+        RawOcrCard.Height = newCardH;
+        // txtRawOcr fills the card below the title label
+        txtRawOcr.Height = Math.Max(newCardH - 64 - 16, 40);
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -62,10 +87,8 @@ public partial class Form1 : Form
     // ═══════════════════════════════════════════════════════════════════════════
     private void Form1_Load(object? sender, EventArgs e)
     {
-        // No background warmup on startup — DirectML/DXGI/MKLDNN background
-        // initialisation sends messages to the foreground HWND which deadlocks
-        // whenever a modal dialog (OpenFileDialog, MessageBox) is open.
-        // All engines initialise lazily on the first OCR run instead.
+        // PaddleOCR warmup is triggered on Shown (after HWND is created) to avoid
+        // the MKLDNN background-init deadlock that occurs when a modal dialog is open.
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -78,8 +101,7 @@ public partial class Form1 : Form
         try
         {
             // Run OpenFileDialog on its own STA thread so the Vista-style shell
-            // dialog (IFileOpenDialog + thumbnail providers) cannot deadlock the
-            // main UI message pump.
+            // dialog cannot deadlock the main UI message pump.
             var tcs = new TaskCompletionSource<string?>();
             var t = new Thread(() =>
             {
@@ -120,14 +142,6 @@ public partial class Form1 : Form
         lock (_frameLock) { _currentFrame?.Dispose(); _currentFrame = bmp; }
         pictureBox.Image = bmp;
 
-        try { prepTab.SetSource(bmp); }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Preprocessing tab error:\n{ex.Message}", "Error",
-                MessageBoxButtons.OK, MessageBoxIcon.Error);
-            return;
-        }
-
         SetProcStatus("Processing: Image loaded");
     }
 
@@ -157,52 +171,24 @@ public partial class Form1 : Form
         RunOcrOnBitmap(snapshot);
     }
 
-    private void RunOcrOnBitmap(Bitmap snapshot, bool alreadyPreprocessed = false)
+    private void RunOcrOnBitmap(Bitmap snapshot)
     {
         var engineType = EngineOrder[Math.Clamp(cmbEngine.SelectedIndex, 0, EngineOrder.Length - 1)];
 
-        // Tesseract needs tessdata path validation up-front
-        string? tessDataPath = null;
-        if (engineType == OcrEngineType.Tesseract || engineType == OcrEngineType.TesseractFast)
-        {
-            string subFolder = engineType == OcrEngineType.TesseractFast ? "tessdata_fast" : "tessdata";
-            tessDataPath = Path.Combine(Application.StartupPath, subFolder);
-            if (!Directory.Exists(tessDataPath))
-            {
-                string url = engineType == OcrEngineType.TesseractFast
-                    ? "https://github.com/tesseract-ocr/tessdata_fast"
-                    : "https://github.com/tesseract-ocr/tessdata";
-                MessageBox.Show(
-                    $"{subFolder} folder not found at:\n{tessDataPath}\n\n" +
-                    $"Download eng.traineddata from {url}",
-                    $"Missing {subFolder}", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                snapshot.Dispose();
-                return;
-            }
-        }
-
-        bool skipPreprocessing = alreadyPreprocessed || !chkEnablePrep.Checked;
-
         btnRunOcr.Enabled  = false;
-        SetProcStatus(skipPreprocessing ? "Processing: Running OCR…" : "Processing: Preprocessing…");
+        SetProcStatus("Processing: Running OCR…");
         lblProcTime.Text = "…";
         ClearResultCards();
 
-        // Preprocess on background thread so UI stays responsive
-        Bitmap? preprocessed = null;
+        // Run OCR on background thread so UI stays responsive
         var worker = new BackgroundWorker();
         worker.DoWork += (_, args) =>
         {
-            preprocessed = skipPreprocessing
-                ? (Bitmap)snapshot.Clone()
-                : ImagePreprocessor.Process(snapshot);
             args.Result = engineType switch
             {
-                OcrEngineType.WinRt        => WinRtOcrEngine.RunAsync(preprocessed).GetAwaiter().GetResult(),
-                OcrEngineType.RapidOcr     => RapidOcrEngine.Run(preprocessed),
-                OcrEngineType.PaddleOcr    => PaddleOcrEngine.Run(preprocessed),
-                OcrEngineType.TesseractFast => RunTesseract(preprocessed, tessDataPath!, fast: true),
-                _                          => RunTesseract(preprocessed, tessDataPath!),
+                OcrEngineType.WinRt    => WinRtOcrEngine.RunAsync(snapshot).GetAwaiter().GetResult(),
+                OcrEngineType.PaddleOcr => PaddleOcrEngine.Run(snapshot),
+                _ => WinRtOcrEngine.RunAsync(snapshot).GetAwaiter().GetResult(),
             };
         };
         worker.RunWorkerCompleted += (_, args) =>
@@ -212,20 +198,11 @@ public partial class Form1 : Form
 
             if (args.Error != null)
             {
-                preprocessed?.Dispose();
                 SetProcStatus("Processing: Error");
                 lblProcTime.Text = "ERR";
                 MessageBox.Show($"OCR failed:\n{args.Error.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
-            }
-
-            // Show the preprocessed (binarised) image so the user can see what the engine received
-            if (preprocessed != null)
-            {
-                var old = pictureBox.Image;
-                pictureBox.Image = preprocessed;
-                if (!ReferenceEquals(old, _currentFrame)) old?.Dispose();
             }
 
             if (args.Result is OcrResult result)
@@ -234,87 +211,12 @@ public partial class Form1 : Form
                 lblProcTime.Text = $"{result.ElapsedMs}ms";
                 SetProcStatus("Processing: Done");
                 RenderResultCards(result);
-                DrawRoiOverlays(result);
                 txtRawOcr.Text = string.IsNullOrWhiteSpace(result.RawText)
                     ? "(no text detected)"
                     : result.RawText;
             }
         };
         worker.RunWorkerAsync();
-    }
-
-    // ── Bitmap → Pix without PNG round-trip ──────────────────────────────────
-    // BMP is uncompressed — encode/decode is a plain memory copy, ~10x faster than PNG.
-    private static Pix BitmapToPix(Bitmap bmp)
-    {
-        using var ms = new MemoryStream();
-        bmp.Save(ms, System.Drawing.Imaging.ImageFormat.Bmp);
-        return Pix.LoadFromMemory(ms.ToArray());
-    }
-
-    // ── Cached Tesseract engine (construction costs ~300–500 ms, so reuse it) ──
-    private static TesseractEngine? _tessEngine;
-    private static TesseractEngine? _tessFastEngine;
-    private static readonly object  _tessLock = new();
-
-    private static TesseractEngine GetOrCreateTessEngine(string tessDataPath, bool fast = false)
-    {
-        ref TesseractEngine? slot = ref fast ? ref _tessFastEngine : ref _tessEngine;
-        if (slot != null) return slot;
-        lock (_tessLock)
-        {
-            slot ??= new TesseractEngine(tessDataPath, "eng", EngineMode.LstmOnly);
-            return slot;
-        }
-    }
-
-    // ── Core Tesseract call ───────────────────────────────────────────────────
-    private static OcrResult RunTesseract(Bitmap bmp, string tessDataPath, bool fast = false)
-    {
-        var sw = Stopwatch.StartNew();
-
-        var engine = GetOrCreateTessEngine(tessDataPath, fast);
-
-        // Direct Bitmap → Pix without a PNG encode/decode round-trip (~30–80 ms saved)
-        using var pix  = BitmapToPix(bmp);
-        using var page = engine.Process(pix, PageSegMode.Auto);
-        float  conf = page.GetMeanConfidence();
-        string text = page.GetText().Trim();
-
-        var words = new List<WordEntry>();
-        using (var iter = page.GetIterator())
-        {
-            iter.Begin();
-            do
-            {
-                if (iter.TryGetBoundingBox(PageIteratorLevel.Word, out var rect))
-                {
-                    string wordText = iter.GetText(PageIteratorLevel.Word)?.Trim() ?? "";
-                    float  wordConf = iter.GetConfidence(PageIteratorLevel.Word) / 100f;
-                    if (wordText.Length > 0)
-                        words.Add(new WordEntry(
-                            wordText,
-                            wordConf,
-                            new Rectangle(rect.X1, rect.Y1,
-                                          rect.X2 - rect.X1,
-                                          rect.Y2 - rect.Y1)));
-                }
-            }
-            while (iter.Next(PageIteratorLevel.Word));
-        }
-
-        var rois = RoiExtractor.Extract(words);
-
-        sw.Stop();
-        return new OcrResult(text, conf, sw.ElapsedMilliseconds, rois, words);
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // ROI OVERLAY
-    // ═══════════════════════════════════════════════════════════════════════════
-    private void DrawRoiOverlays(OcrResult result)
-    {
-        // ROI overlay drawing disabled – image is shown as-is
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -368,13 +270,14 @@ public partial class Form1 : Form
 
     private Panel BuildResultCard(string label, string value, Color borderCol)
     {
-        const int cardH    = 82;
+        const int cardH    = 100;
         const int leftBar  = 4;
         const int padL     = 12;
         const int padR     = 10;
-        const int rowLabel = 10;
-        const int rowValue = 34;
-        const int valH     = 36;
+        const int rowLabel = 12;
+        const int labelH   = 22;
+        const int rowValue = 42;
+        const int valH     = 40;
 
         var card = new Panel
         {
@@ -402,20 +305,20 @@ public partial class Form1 : Form
         {
             using var bar    = new SolidBrush(borderCol);
             using var border = new Pen(ClrBorder, 1);
-            e.Graphics.FillRectangle(bar, 0, 0, leftBar, cardH);
-            e.Graphics.DrawRectangle(border, 0, 0, card.Width - 1, cardH - 1);
+            e.Graphics.FillRectangle(bar, 0, 0, leftBar, card.Height);
+            e.Graphics.DrawRectangle(border, 0, 0, card.Width - 1, card.Height - 1);
         };
 
         var lblTag = new Label
         {
             Text         = label,
             ForeColor    = ClrSubText,
-            Font         = new Font("Consolas", 10f, FontStyle.Regular),
+            Font         = new Font("Consolas", 13f, FontStyle.Regular),
             AutoSize     = false,
             Left         = padL + leftBar,
             Top          = rowLabel,
             Width        = card.Width - padL - leftBar - padR,
-            Height       = 18,
+            Height       = labelH,
             AutoEllipsis = true,
         };
 
@@ -439,37 +342,6 @@ public partial class Form1 : Form
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // TAB HANDLERS
-    // ═══════════════════════════════════════════════════════════════════════════
-    private void MainTabs_DrawItem(object? sender, DrawItemEventArgs e)
-    {
-        var g   = e.Graphics;
-        bool sel = e.Index == mainTabs.SelectedIndex;
-        using var bgBrush = new SolidBrush(sel
-            ? Color.FromArgb(36, 39, 46)
-            : Color.FromArgb(20, 22, 27));
-        using var fgBrush = new SolidBrush(sel
-            ? Color.FromArgb(57, 255, 20)
-            : Color.FromArgb(140, 145, 155));
-        g.FillRectangle(bgBrush, e.Bounds);
-        var text = mainTabs.TabPages[e.Index].Text;
-        var sf   = new StringFormat
-        {
-            Alignment     = StringAlignment.Center,
-            LineAlignment = StringAlignment.Center
-        };
-        g.DrawString(text, mainTabs.Font, fgBrush, e.Bounds, sf);
-    }
-
-    private void PrepTab_UseAsOcrInput(object? sender, Bitmap bmp)
-    {
-        lock (_frameLock) { _currentFrame?.Dispose(); _currentFrame = (Bitmap)bmp.Clone(); }
-        pictureBox.Image = bmp;
-        mainTabs.SelectedIndex = 0;   // switch back to OCR tab
-        RunOcrOnBitmap((Bitmap)bmp.Clone(), alreadyPreprocessed: true);  // no double-preprocessing
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════════
     // HELPERS
     // ═══════════════════════════════════════════════════════════════════════════
     private void SetProcStatus(string text)
@@ -486,10 +358,5 @@ public partial class Form1 : Form
     private void Form1_FormClosing(object? sender, FormClosingEventArgs e)
     {
         lock (_frameLock) { _currentFrame?.Dispose(); }
-        lock (_tessLock)
-        {
-            _tessEngine?.Dispose();     _tessEngine     = null;
-            _tessFastEngine?.Dispose(); _tessFastEngine = null;
-        }
     }
 }

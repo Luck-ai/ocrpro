@@ -5,7 +5,7 @@ using Emgu.CV.CvEnum;
 using Emgu.CV.Structure;
 using Emgu.CV.Util;
 
-namespace OcrTesseract;
+namespace OcrPro;
 
 // ── Per-step parameter bags (used by both the auto pipeline and the manual tab) ──
 record UpscaleParams   (bool Enabled, double Factor    = 2.0);

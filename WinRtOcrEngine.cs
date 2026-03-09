@@ -6,46 +6,75 @@ using Windows.Globalization;
 using Windows.Graphics.Imaging;
 using Windows.Media.Ocr;
 
-namespace OcrTesseract;
+namespace OcrPro;
 
 /// <summary>
-/// OCR engine backed by the Windows.Media.Ocr WinRT API.
-/// The engine instance is created once and reused across calls (~5–20 ms per image).
-/// </summary>
-static class WinRtOcrEngine
-{
+    /// OCR engine backed by the Windows.Media.Ocr WinRT API.
+    /// The engine instance is created once and reused across calls (~5–20 ms per image).
+    ///
+    /// Default preprocessing pipeline: V01c — Gray+CLAHE(2,t8)+Sharp(2.5,1.5) = 50/53 All-3.
+    /// </summary>
+    static class WinRtOcrEngine
+    {
     // Cache one engine per language tag (e.g. "en-US", "fr-FR").
     private static readonly Dictionary<string, OcrEngine> _engines = new();
+
+    // ── V01c default preprocessing (Gray + CLAHE(2,t8) + Sharpen(2.5,1.5)) ───
+    private static readonly GrayscaleParams _defaultGray    = new(true);
+    private static readonly ClaheParams     _defaultClahe   = new(true, Clip: 2.0, TileSize: 8);
+    private static readonly SharpenParams   _defaultSharpen = new(true, Sigma: 2.5, Strength: 1.5);
 
     // ── Public entry point ────────────────────────────────────────────────────
 
     /// <summary>
     /// Run OCR on <paramref name="bmp"/> using Windows.Media.Ocr.
+    /// Applies V01c preprocessing by default (gray + CLAHE + sharpen).
+    /// Pass <paramref name="skipPreprocess"/> = true to bypass preprocessing.
     /// </summary>
     /// <param name="bmp">Source bitmap (any pixel format; converted internally).</param>
     /// <param name="languageTag">
     ///   BCP-47 language tag, e.g. "en-US" or "eng". Pass null / empty to use
     ///   the user's profile languages. "eng" is normalised to "en-US".
     /// </param>
-    /// <returns>An <see cref="OcrResult"/> compatible with the rest of the app.</returns>
-    public static async Task<OcrResult> RunAsync(Bitmap bmp, string? languageTag = null)
+    /// <param name="skipPreprocess">
+    ///   If true, skip the default V01c preprocessing (useful when caller
+    ///   has already preprocessed or wants raw WinRT output).
+    /// </param>
+    public static async Task<OcrResult> RunAsync(Bitmap bmp, string? languageTag = null,
+        int padding = 0, SharpenParams? sharpen = null, bool skipPreprocess = false)
     {
-        var sw = Stopwatch.StartNew();
-
         var engine = GetOrCreateEngine(languageTag);
 
+        // Apply V01c preprocessing by default: Gray + CLAHE(2,t8) + Sharpen(2.5,1.5)
+        // Can be overridden by caller via sharpen parameter or skipped with skipPreprocess=true.
+        Bitmap? preprocessed = null;
+        if (!skipPreprocess)
+        {
+            using var bgr  = ImagePreprocessor.BitmapToMat(bmp);
+            using var gray = ImagePreprocessor.StepGrayscale(bgr, _defaultGray);
+            using var eq   = ImagePreprocessor.StepClahe(gray, _defaultClahe);
+            var sharpParams = (sharpen is { Enabled: true }) ? sharpen : _defaultSharpen;
+            using var shp  = ImagePreprocessor.StepSharpen(eq, sharpParams);
+            preprocessed = ImagePreprocessor.MatToBitmap(shp);
+            bmp = preprocessed;
+        }
+        else if (sharpen is { Enabled: true })
+        {
+            // Legacy: sharpen-only path when skipPreprocess=true but sharpen supplied
+            preprocessed = ImagePreprocessor.ApplySharpen(bmp, sharpen);
+            bmp = preprocessed;
+        }
+
         // Convert System.Drawing.Bitmap → SoftwareBitmap via direct pixel copy (no encode/decode)
-        using var softBitmap = BitmapToSoftwareBitmap(bmp);
+        using var softBitmap = BitmapToSoftwareBitmap(bmp, padding);
 
-        // The WinRT call itself — this is what takes ~5–20 ms
+        // Time only the WinRT recognition call itself
+        var sw = Stopwatch.StartNew();
         var winResult = await engine.RecognizeAsync(softBitmap);
-
         sw.Stop();
 
         // ── Flatten WinRT result into our WordEntry list ──────────────────────
         var words = new List<WordEntry>();
-        float totalConf = 0f;
-        int   wordCount = 0;
         var sb = new System.Text.StringBuilder();
 
         foreach (var line in winResult.Lines)
@@ -55,15 +84,9 @@ static class WinRtOcrEngine
             foreach (var word in line.Words)
             {
                 var r = word.BoundingRect;
-                // Windows.Media.Ocr does not expose per-word confidence; use 1.0
-                // as a placeholder so existing ROI confidence logic still works.
-                const float winRtConf = 1.0f;
                 words.Add(new WordEntry(
                     word.Text,
-                    winRtConf,
                     new Rectangle((int)r.X, (int)r.Y, (int)r.Width, (int)r.Height)));
-                totalConf += winRtConf;
-                wordCount++;
 
                 if (!firstWordInLine) sb.Append(' ');
                 sb.Append(word.Text);
@@ -71,12 +94,16 @@ static class WinRtOcrEngine
             }
         }
 
-        float meanConf = wordCount > 0 ? totalConf / wordCount : 0f;
         string rawText = sb.ToString();
 
         var rois = RoiExtractor.Extract(words);
 
-        return new OcrResult(rawText, meanConf, sw.ElapsedMilliseconds, rois, words);
+        // Rebuild raw text with OCR noise corrected in ROI-matched spans
+        // (e.g. leading tick on serial → '1', O→0/l→1 in part number)
+        string correctedText = RoiExtractor.BuildCorrectedText(rawText, words);
+
+        preprocessed?.Dispose();
+        return new OcrResult(correctedText, sw.ElapsedMilliseconds, rois, words);
     }
 
     // ── Availability check ────────────────────────────────────────────────────
@@ -148,16 +175,12 @@ static class WinRtOcrEngine
     // is large enough for the recogniser to handle reliably.
     private const int MinOcrDimension = 800;
 
-    // Padding (px) added around the image before passing to WinRT.
-    // A white border prevents the engine from clipping text at the image edges.
-    private const int OcrPadding = 20;
-
     /// <summary>
     /// Converts a System.Drawing.Bitmap to a SoftwareBitmap via a single direct pixel copy.
-    /// Upscales small images so the shorter side is at least <see cref="MinOcrDimension"/> px,
-    /// then adds <see cref="OcrPadding"/> px of white padding on all sides.
+    /// Upscales small images so the shorter side is at least <see cref="MinOcrDimension"/> px.
+    /// Optionally adds <paramref name="padding"/> px of white border on all sides.
     /// </summary>
-    private static SoftwareBitmap BitmapToSoftwareBitmap(Bitmap bmp)
+    private static SoftwareBitmap BitmapToSoftwareBitmap(Bitmap bmp, int padding = 0)
     {
         // Upscale if the shorter side is below MinOcrDimension.
         Bitmap? scaled = null;
@@ -174,18 +197,18 @@ static class WinRtOcrEngine
             bmp = scaled;
         }
 
-        // Add white padding around the image.
-        int paddedW = bmp.Width  + OcrPadding * 2;
-        int paddedH = bmp.Height + OcrPadding * 2;
-        var padded = new Bitmap(paddedW, paddedH, PixelFormat.Format32bppArgb);
-        using (var gp = Graphics.FromImage(padded))
+        // Optionally add white padding around the image.
+        Bitmap? padded = null;
+        if (padding > 0)
         {
+            padded = new Bitmap(bmp.Width + padding * 2, bmp.Height + padding * 2, PixelFormat.Format32bppArgb);
+            using var gp = Graphics.FromImage(padded);
             gp.Clear(Color.White);
-            gp.DrawImage(bmp, OcrPadding, OcrPadding, bmp.Width, bmp.Height);
+            gp.DrawImage(bmp, padding, padding, bmp.Width, bmp.Height);
+            scaled?.Dispose();
+            scaled = null;
+            bmp = padded;
         }
-        scaled?.Dispose();
-        scaled = padded;
-        bmp = padded;
 
         // Convert to Bgra32 if needed so the pixel layout matches BitmapPixelFormat.Bgra8.
         Bitmap? converted = null;
@@ -226,6 +249,7 @@ static class WinRtOcrEngine
         {
             converted?.Dispose();
             scaled?.Dispose();
+            padded?.Dispose();
         }
     }
 }

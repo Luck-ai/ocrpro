@@ -4,11 +4,14 @@ using Sdcb.PaddleOCR;
 using Sdcb.PaddleOCR.Models.Local;
 using Sdcb.PaddleInference;
 
-namespace OcrTesseract;
+namespace OcrPro;
 
 /// <summary>
-/// OCR engine backed by PaddleOCR (PP-OCRv4 English, MKLDNN CPU).
-/// Typical throughput: ~200–500 ms on CPU after first-run warm-up.
+/// OCR engine backed by PaddleOCR (PP-OCRv3 English, MKLDNN CPU).
+/// Typical throughput: ~130–400 ms on CPU after first-run warm-up.
+/// Switched from V4 to V3 based on speed benchmark:
+///   V3 local: avg=328ms, min=132ms, 19/19 all-3 PASS (faster AND same accuracy as V4/640)
+///   V4/640:   avg=491ms, min=229ms, 19/19 all-3 PASS
 /// Models are bundled with Sdcb.PaddleOCR.Models.Local — no download needed.
 ///
 /// A single <see cref="PaddleOcrAll"/> instance is held open and reused.
@@ -17,7 +20,7 @@ namespace OcrTesseract;
 static class PaddleOcrEngine
 {
     private static PaddleOcrAll? _ocr;
-    private static bool          _initialised;
+    private static volatile bool _initialised;
     private static string?       _initError;
     private static string        _deviceLabel = "CPU/MKLDNN";
     private static readonly object _lock = new();
@@ -48,7 +51,11 @@ static class PaddleOcrEngine
         PaddleOcrResult result;
         using (var mat = BitmapToMat(bmp))
         {
-            result = _ocr.Run(mat);
+            // PaddleOCR's ONNX session is not thread-safe — serialise all Run() calls.
+            lock (_lock)
+            {
+                result = _ocr.Run(mat);
+            }
         }
 
         sw.Stop();
@@ -60,8 +67,6 @@ static class PaddleOcrEngine
             string text = region.Text?.Trim() ?? "";
             if (text.Length == 0) continue;
 
-            float conf = (float)region.Score;
-
             // Convert RotatedRect to axis-aligned bounding Rectangle
             var rrect = region.Rect;
             var pts   = Cv2.BoxPoints(rrect);
@@ -70,15 +75,14 @@ static class PaddleOcrEngine
             int x2 = (int)pts.Max(p => p.X);
             int y2 = (int)pts.Max(p => p.Y);
 
-            words.Add(new WordEntry(text, conf,
+            words.Add(new WordEntry(text,
                 new Rectangle(x1, y1, x2 - x1, y2 - y1)));
         }
 
-        float meanConf = words.Count > 0 ? words.Average(w => w.Confidence) : 0f;
         string rawText = result.Text?.Trim() ?? "";
         var rois       = RoiExtractor.Extract(words);
 
-        return new OcrResult(rawText, meanConf, sw.ElapsedMilliseconds, rois, words);
+        return new OcrResult(rawText, sw.ElapsedMilliseconds, rois, words);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -125,47 +129,38 @@ static class PaddleOcrEngine
         lock (_lock)
         {
             if (_initialised) return;
-            try
-            {
-                var model = LocalFullModels.EnglishV4;
-
-                // Try DirectML (GPU/NPU via DirectX 12) first — approaches WinRT speed.
-                // Falls back to CPU MKLDNN if no DirectML-capable device is present.
-                PaddleOcrAll? ocr = null;
-                try
-                {
-                    ocr = new PaddleOcrAll(model, PaddleDevice.Onnx(0))
-                    {
-                        AllowRotateDetection    = false,
-                        Enable180Classification = false,
-                    };
-                    using var probe = new Mat(32, 128, MatType.CV_8UC3, Scalar.White);
-                    ocr.Run(probe);   // confirm device works before committing
-                    _deviceLabel = "GPU/DirectML";
-                }
-                catch
-                {
-                    ocr?.Dispose();
-                    ocr = new PaddleOcrAll(model, PaddleDevice.Mkldnn())
-                    {
-                        AllowRotateDetection    = false,
-                        Enable180Classification = false,
-                    };
-                    _deviceLabel = "CPU/MKLDNN";
-                }
-
-                ocr.Detector.MaxSize = 640;  // default 1536 — smaller = ~2x faster detection
-
-                using var warmup = new Mat(64, 256, MatType.CV_8UC3, Scalar.White);
-                ocr.Run(warmup);
-                _ocr = ocr;
-            }
-            catch (Exception ex)
-            {
-                _initError = ex.Message;
-                _ocr       = null;
-            }
-            _initialised = true;
+            InitialiseLocked();
         }
+    }
+
+    /// <summary>
+    /// Does the actual init work. Must be called with <see cref="_lock"/> already held.
+    /// Uses CPU/MKLDNN unconditionally — DirectML (ONNX) is unreliable on this hardware
+    /// (passes probe but fails on every other real image with a native session error).
+    /// </summary>
+    private static void InitialiseLocked()
+    {
+        try
+        {
+            var model = LocalFullModels.EnglishV3;
+
+            var ocr = new PaddleOcrAll(model, PaddleDevice.Mkldnn())
+            {
+                AllowRotateDetection    = true,
+                Enable180Classification = true,
+            };
+            ocr.Detector.MaxSize = 640;  // default 1536 — smaller = ~2x faster detection
+            _deviceLabel = "CPU/MKLDNN";
+
+            using var warmup = new Mat(720, 1280, MatType.CV_8UC3, Scalar.White);
+            ocr.Run(warmup);
+            _ocr = ocr;
+        }
+        catch (Exception ex)
+        {
+            _initError = ex.Message;
+            _ocr       = null;
+        }
+        _initialised = true;
     }
 }
