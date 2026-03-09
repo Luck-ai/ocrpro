@@ -26,12 +26,13 @@ static class RoiExtractor
 {
     // ── Patterns ────────────────────────────────────────────────────────────────
     // ROI B: "Serial" "Number" ":" "<digits>"
+    // Fuzzy: allow OCR misreads of "Serial" (e.g. "Sonal", "Senial", "Seria1")
     private static readonly Regex _serialRx =
-        new(@"Serial\s+Number\s*[:\-\.]?\s*(\d[\d\-]+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        new(@"S\w{2,5}l\s+Number\s*[:\-\.]?\s*(\d[\d\-]+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     // ROI C: "Part" "Number" ":" "<alphanumeric-dash-underscore>"
     private static readonly Regex _partRx =
-        new(@"Part\s+Number\s*[:\-\.]?\s*([A-Z0-9][A-Z0-9\-_]+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        new(@"P\w{0,3}t\s+Number\s*[:\-\.]?\s*([A-Z0-9][A-Z0-9\-_]+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     // ── Public entry point ───────────────────────────────────────────────────────
     /// <summary>

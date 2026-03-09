@@ -36,6 +36,11 @@ public partial class PreprocessingTab : UserControl
         trkBinThr.ValueChanged += (_, _) => lblBinThr.Text = trkBinThr.Value == 0 ? "Otsu" : $"{trkBinThr.Value}";
         btnApplyBinarise.Click += (_, _) => ApplyStep(5);
 
+        // 7. Brightness / Contrast
+        trkBrightness.ValueChanged += (_, _) => lblBrightnessVal.Text = $"{trkBrightness.Value:+#;-#;0}";
+        trkContrast.ValueChanged   += (_, _) => lblContrastVal.Text   = $"{trkContrast.Value:+#;-#;0}";
+        btnApplyBrightnessContrast.Click += (_, _) => ApplyStep(6);
+
         // Buttons
         btnApplyAll.Click += (_, _) => ApplyAll();
         btnUseAsOcr.Click += (_, _) => OnUseAsOcrInput();
@@ -66,6 +71,7 @@ public partial class PreprocessingTab : UserControl
                 3 => ImagePreprocessor.ApplyDeskew(src, GetDeskewParams()),
                 4 => ImagePreprocessor.ApplySharpen(src, GetSharpenParams()),
                 5 => ImagePreprocessor.ApplyBinarise(src, GetBinariseParams()),
+                6 => ImagePreprocessor.ApplyBrightnessContrast(src, GetBrightnessContrastParams()),
                 _ => null,
             };
         }
@@ -91,7 +97,8 @@ public partial class PreprocessingTab : UserControl
                 GetClaheParams(),
                 GetDeskewParams(),
                 GetSharpenParams(),
-                GetBinariseParams());
+                GetBinariseParams(),
+                GetBrightnessContrastParams());
         }
         catch (Exception ex)
         {
@@ -108,9 +115,10 @@ public partial class PreprocessingTab : UserControl
         Bitmap? result = null;
         try
         {
-            result = ImagePreprocessor.Process(_source,
-                GetUpscaleParams(), GetGrayscaleParams(), GetClaheParams(),
-                GetDeskewParams(), GetSharpenParams(), GetBinariseParams());
+        result = ImagePreprocessor.Process(_source,
+            GetUpscaleParams(), GetGrayscaleParams(), GetClaheParams(),
+            GetDeskewParams(), GetSharpenParams(), GetBinariseParams(),
+            GetBrightnessContrastParams());
         }
         catch (Exception ex)
         {
@@ -142,4 +150,5 @@ public partial class PreprocessingTab : UserControl
     private DeskewParams GetDeskewParams() => new(chkDeskew.Checked, trkDeskewMax.Value);
     private SharpenParams GetSharpenParams() => new(chkSharpen.Checked, trkSharpenSig.Value / 10.0, trkSharpenStr.Value / 10.0);
     private BinariseParams GetBinariseParams() => new(chkBin.Checked, trkBinThr.Value);
+    private BrightnessContrastParams GetBrightnessContrastParams() => new(chkBrightnessContrast.Checked, trkBrightness.Value, trkContrast.Value);
 }

@@ -29,4 +29,29 @@ enum OcrEngineType
     /// Requires models in models/ppocr/ (det, cls, rec ONNX + keys file).
     /// </summary>
     RapidOcr,
+
+    /// <summary>
+    /// Tesseract 5 Fast — integer-quantised LSTM models from tessdata_fast.
+    /// ~2–4x faster than standard tessdata at a small accuracy cost.
+    /// Requires tessdata_fast/eng.traineddata next to the executable.
+    /// </summary>
+    TesseractFast,
+
+    /// <summary>
+    /// Tesseract 5 Best — highest-accuracy LSTM models from tessdata_best.
+    /// Requires tessdata_best/eng.traineddata next to the executable.
+    /// </summary>
+    TesseractBest,
+
+    /// <summary>
+    /// PP-OCRv5 Mobile (Chinese unified model handles English).
+    /// Downloaded on first use via Sdcb.PaddleOCR.Models.Online.
+    /// </summary>
+    PaddleOcrV5Mobile,
+
+    /// <summary>
+    /// PP-OCRv5 Server — highest-accuracy PaddleOCR models.
+    /// Downloaded on first use via Sdcb.PaddleOCR.Models.Online.
+    /// </summary>
+    PaddleOcrV5Server,
 }

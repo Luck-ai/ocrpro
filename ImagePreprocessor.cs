@@ -14,6 +14,7 @@ record ClaheParams     (bool Enabled, double Clip = 3.0, int TileSize = 8);
 record DeskewParams    (bool Enabled, double MaxDeg = 15.0);
 record SharpenParams   (bool Enabled, double Sigma = 1.0, double Strength = 1.2);
 record BinariseParams  (bool Enabled, int Threshold = 0);  // 0 = Otsu
+record BrightnessContrastParams (bool Enabled, int Brightness = 0, int Contrast = 0);  // -100..+100
 
 /// <summary>
 /// Emgu.CV preprocessing pipeline.
@@ -29,6 +30,7 @@ internal static class ImagePreprocessor
     public static readonly DeskewParams    DefaultDeskew    = new(true,  15.0);
     public static readonly SharpenParams   DefaultSharpen   = new(true,  1.0, 1.2);
     public static readonly BinariseParams  DefaultBinarise  = new(true,  0);
+    public static readonly BrightnessContrastParams DefaultBrightnessContrast = new(false, 0, 0);
 
     // ─────────────────────────────────────────────────────────────────────────
     /// <summary>Full automatic pipeline — returns a binarised Bitmap ready for OCR.</summary>
@@ -38,14 +40,16 @@ internal static class ImagePreprocessor
         ClaheParams?     clahe     = null,
         DeskewParams?    deskew    = null,
         SharpenParams?   sharpen   = null,
-        BinariseParams?  binarise  = null)
+        BinariseParams?  binarise  = null,
+        BrightnessContrastParams? brightnessContrast = null)
     {
-        upscale   ??= DefaultUpscale;
-        grayscale ??= DefaultGrayscale;
-        clahe     ??= DefaultClahe;
-        deskew    ??= DefaultDeskew;
-        sharpen   ??= DefaultSharpen;
-        binarise  ??= DefaultBinarise;
+        upscale             ??= DefaultUpscale;
+        grayscale           ??= DefaultGrayscale;
+        clahe               ??= DefaultClahe;
+        deskew              ??= DefaultDeskew;
+        sharpen             ??= DefaultSharpen;
+        binarise            ??= DefaultBinarise;
+        brightnessContrast  ??= DefaultBrightnessContrast;
 
         using var bgr  = BitmapToMat(src);
         using var up   = StepUpscale(bgr,   upscale);
@@ -54,7 +58,8 @@ internal static class ImagePreprocessor
         using var desk = StepDeskew(eq,     deskew);
         using var shp  = StepSharpen(desk,  sharpen);
         using var bin  = StepBinarise(shp,  binarise);
-        return MatToBitmap(bin);
+        using var bc   = StepBrightnessContrast(bin, brightnessContrast);
+        return MatToBitmap(bc);
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -105,6 +110,13 @@ internal static class ImagePreprocessor
         using var mat  = BitmapToMat(src);
         using var gray = EnsureGray(mat);
         using var out_ = StepBinarise(gray, p);
+        return MatToBitmap(out_);
+    }
+
+    public static Bitmap ApplyBrightnessContrast(Bitmap src, BrightnessContrastParams p)
+    {
+        using var mat  = BitmapToMat(src);
+        using var out_ = StepBrightnessContrast(mat, p);
         return MatToBitmap(out_);
     }
 
@@ -180,6 +192,18 @@ internal static class ImagePreprocessor
             ? ThresholdType.Binary | ThresholdType.Otsu
             : ThresholdType.Binary;
         CvInvoke.Threshold(gray, dst, p.Threshold, 255, type);
+        return dst;
+    }
+
+    internal static Mat StepBrightnessContrast(Mat src, BrightnessContrastParams p)
+    {
+        if (!p.Enabled) return src.Clone();
+        // alpha = contrast factor: 0 = grey slab, 1 = no change, >1 = more contrast
+        // beta  = brightness offset in [0,255] space
+        double alpha = (p.Contrast + 100.0) / 100.0;   // range 0.0 .. 2.0
+        double beta  = p.Brightness;                    // range -100 .. +100
+        var dst = new Mat();
+        src.ConvertTo(dst, Emgu.CV.CvEnum.DepthType.Cv8U, alpha, beta);
         return dst;
     }
 

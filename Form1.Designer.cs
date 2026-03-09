@@ -184,7 +184,7 @@ partial class Form1
         cmbEngine.ForeColor = Color.FromArgb(220, 220, 220);
         cmbEngine.IntegralHeight = false;
         cmbEngine.ItemHeight = 32;
-        cmbEngine.Items.AddRange(new object[] { "WinRT  (~5–20 ms)", "RapidOCR  (~5–50 ms)", "PaddleOCR  (~200–500 ms)", "Tesseract  (~700 ms)" });
+        cmbEngine.Items.AddRange(new object[] { "1  WinRT  (~5–20 ms)", "2  RapidOCR  (~5–50 ms)", "3  PaddleOCR V4  (~200–500 ms)", "4  Tesseract  (~700 ms)", "5  Tesseract Fast  (~200 ms)" });
         cmbEngine.Location = new Point(19, 64);
         cmbEngine.Margin = new Padding(6);
         cmbEngine.Name = "cmbEngine";

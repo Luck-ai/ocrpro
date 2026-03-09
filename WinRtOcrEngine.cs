@@ -143,24 +143,28 @@ static class WinRtOcrEngine
         };
     }
 
-    // Maximum dimension (width or height) passed to the OCR engine.
-    // WinRT OCR is accurate down to ~40px text height; 1400px is safe for large-text label images.
-    // Reduce further (e.g. 1000) if text is consistently large and you need more speed.
-    private const int MaxOcrDimension = 1400;
+    // WinRT OCR accuracy improves significantly when text height is adequate.
+    // Upscale images whose shorter side is below this threshold so small UI text
+    // is large enough for the recogniser to handle reliably.
+    private const int MinOcrDimension = 800;
+
+    // Padding (px) added around the image before passing to WinRT.
+    // A white border prevents the engine from clipping text at the image edges.
+    private const int OcrPadding = 20;
 
     /// <summary>
     /// Converts a System.Drawing.Bitmap to a SoftwareBitmap via a single direct pixel copy.
-    /// Downscales to <see cref="MaxOcrDimension"/> on the longest side before conversion,
-    /// reducing the pixel count fed to RecognizeAsync (~proportional speedup).
+    /// Upscales small images so the shorter side is at least <see cref="MinOcrDimension"/> px,
+    /// then adds <see cref="OcrPadding"/> px of white padding on all sides.
     /// </summary>
     private static SoftwareBitmap BitmapToSoftwareBitmap(Bitmap bmp)
     {
-        // Downscale if the largest dimension exceeds MaxOcrDimension.
+        // Upscale if the shorter side is below MinOcrDimension.
         Bitmap? scaled = null;
-        if (bmp.Width > MaxOcrDimension || bmp.Height > MaxOcrDimension)
+        int shortSide = Math.Min(bmp.Width, bmp.Height);
+        if (shortSide < MinOcrDimension)
         {
-            float scale = Math.Min((float)MaxOcrDimension / bmp.Width,
-                                   (float)MaxOcrDimension / bmp.Height);
+            float scale = (float)MinOcrDimension / shortSide;
             int newW = Math.Max(1, (int)(bmp.Width  * scale));
             int newH = Math.Max(1, (int)(bmp.Height * scale));
             scaled = new Bitmap(newW, newH, PixelFormat.Format32bppArgb);
@@ -169,6 +173,19 @@ static class WinRtOcrEngine
             gs.DrawImage(bmp, 0, 0, newW, newH);
             bmp = scaled;
         }
+
+        // Add white padding around the image.
+        int paddedW = bmp.Width  + OcrPadding * 2;
+        int paddedH = bmp.Height + OcrPadding * 2;
+        var padded = new Bitmap(paddedW, paddedH, PixelFormat.Format32bppArgb);
+        using (var gp = Graphics.FromImage(padded))
+        {
+            gp.Clear(Color.White);
+            gp.DrawImage(bmp, OcrPadding, OcrPadding, bmp.Width, bmp.Height);
+        }
+        scaled?.Dispose();
+        scaled = padded;
+        bmp = padded;
 
         // Convert to Bgra32 if needed so the pixel layout matches BitmapPixelFormat.Bgra8.
         Bitmap? converted = null;

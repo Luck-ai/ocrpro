@@ -46,6 +46,7 @@ public partial class Form1 : Form
         OcrEngineType.RapidOcr,
         OcrEngineType.PaddleOcr,
         OcrEngineType.Tesseract,
+        OcrEngineType.TesseractFast,
     };
 
     public Form1()
@@ -61,36 +62,73 @@ public partial class Form1 : Form
     // ═══════════════════════════════════════════════════════════════════════════
     private void Form1_Load(object? sender, EventArgs e)
     {
-        PaddleOcrEngine.WarmUpInBackground();   // initialise model while user sets up image
-        RapidOcrEngine.WarmUpInBackground();    // load PP-OCRv4 ONNX models + DirectML session
+        // No background warmup on startup — DirectML/DXGI/MKLDNN background
+        // initialisation sends messages to the foreground HWND which deadlocks
+        // whenever a modal dialog (OpenFileDialog, MessageBox) is open.
+        // All engines initialise lazily on the first OCR run instead.
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
     // LOAD IMAGE (file)
     // ═══════════════════════════════════════════════════════════════════════════
-    private void btnLoadImage_Click(object? sender, EventArgs e)
+    private async void btnLoadImage_Click(object? sender, EventArgs e)
     {
-        using var dlg = new OpenFileDialog
-        {
-            Title  = "Select an image",
-            Filter = "Image Files|*.bmp;*.png;*.jpg;*.jpeg;*.tiff;*.tif;*.gif|All Files|*.*"
-        };
-        if (dlg.ShowDialog() != DialogResult.OK) return;
-
-        _imagePath = dlg.FileName;
+        btnLoadImage.Enabled = false;
+        string? path = null;
         try
         {
-            var bmp = new Bitmap(Image.FromFile(_imagePath));
-            lock (_frameLock) { _currentFrame?.Dispose(); _currentFrame = bmp; }
-            pictureBox.Image = bmp;
-            prepTab.SetSource(bmp);   // feed into preprocessing tab
-            SetProcStatus("Processing: Image loaded");
+            // Run OpenFileDialog on its own STA thread so the Vista-style shell
+            // dialog (IFileOpenDialog + thumbnail providers) cannot deadlock the
+            // main UI message pump.
+            var tcs = new TaskCompletionSource<string?>();
+            var t = new Thread(() =>
+            {
+                using var dlg = new OpenFileDialog
+                {
+                    Title  = "Select an image",
+                    Filter = "Image Files|*.bmp;*.png;*.jpg;*.jpeg;*.tiff;*.tif;*.gif|All Files|*.*",
+                };
+                tcs.SetResult(dlg.ShowDialog() == DialogResult.OK ? dlg.FileName : null);
+            });
+            t.SetApartmentState(ApartmentState.STA);
+            t.IsBackground = true;
+            t.Start();
+            path = await tcs.Task;
+        }
+        finally
+        {
+            btnLoadImage.Enabled = true;
+        }
+
+        if (path == null) return;
+        _imagePath = path;
+
+        Bitmap? bmp = null;
+        try
+        {
+            var img = Image.FromFile(_imagePath);
+            bmp = new Bitmap(img);
+            img.Dispose();
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Failed to load image:\n{ex.Message}", "Error",
+            MessageBox.Show($"Failed to decode image:\n{ex.Message}", "Image Load Error",
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
+            return;
         }
+
+        lock (_frameLock) { _currentFrame?.Dispose(); _currentFrame = bmp; }
+        pictureBox.Image = bmp;
+
+        try { prepTab.SetSource(bmp); }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Preprocessing tab error:\n{ex.Message}", "Error",
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
+            return;
+        }
+
+        SetProcStatus("Processing: Image loaded");
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -125,15 +163,19 @@ public partial class Form1 : Form
 
         // Tesseract needs tessdata path validation up-front
         string? tessDataPath = null;
-        if (engineType == OcrEngineType.Tesseract)
+        if (engineType == OcrEngineType.Tesseract || engineType == OcrEngineType.TesseractFast)
         {
-            tessDataPath = Path.Combine(Application.StartupPath, "tessdata");
+            string subFolder = engineType == OcrEngineType.TesseractFast ? "tessdata_fast" : "tessdata";
+            tessDataPath = Path.Combine(Application.StartupPath, subFolder);
             if (!Directory.Exists(tessDataPath))
             {
+                string url = engineType == OcrEngineType.TesseractFast
+                    ? "https://github.com/tesseract-ocr/tessdata_fast"
+                    : "https://github.com/tesseract-ocr/tessdata";
                 MessageBox.Show(
-                    $"tessdata folder not found at:\n{tessDataPath}\n\n" +
-                    "Download eng.traineddata from https://github.com/tesseract-ocr/tessdata",
-                    "Missing tessdata", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    $"{subFolder} folder not found at:\n{tessDataPath}\n\n" +
+                    $"Download eng.traineddata from {url}",
+                    $"Missing {subFolder}", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 snapshot.Dispose();
                 return;
             }
@@ -156,10 +198,11 @@ public partial class Form1 : Form
                 : ImagePreprocessor.Process(snapshot);
             args.Result = engineType switch
             {
-                OcrEngineType.WinRt     => WinRtOcrEngine.RunAsync(preprocessed).GetAwaiter().GetResult(),
-                OcrEngineType.RapidOcr  => RapidOcrEngine.Run(preprocessed),
-                OcrEngineType.PaddleOcr => PaddleOcrEngine.Run(preprocessed),
-                _                       => RunTesseract(preprocessed, tessDataPath!),
+                OcrEngineType.WinRt        => WinRtOcrEngine.RunAsync(preprocessed).GetAwaiter().GetResult(),
+                OcrEngineType.RapidOcr     => RapidOcrEngine.Run(preprocessed),
+                OcrEngineType.PaddleOcr    => PaddleOcrEngine.Run(preprocessed),
+                OcrEngineType.TesseractFast => RunTesseract(preprocessed, tessDataPath!, fast: true),
+                _                          => RunTesseract(preprocessed, tessDataPath!),
             };
         };
         worker.RunWorkerCompleted += (_, args) =>
@@ -211,24 +254,26 @@ public partial class Form1 : Form
 
     // ── Cached Tesseract engine (construction costs ~300–500 ms, so reuse it) ──
     private static TesseractEngine? _tessEngine;
+    private static TesseractEngine? _tessFastEngine;
     private static readonly object  _tessLock = new();
 
-    private static TesseractEngine GetOrCreateTessEngine(string tessDataPath)
+    private static TesseractEngine GetOrCreateTessEngine(string tessDataPath, bool fast = false)
     {
-        if (_tessEngine != null) return _tessEngine;
+        ref TesseractEngine? slot = ref fast ? ref _tessFastEngine : ref _tessEngine;
+        if (slot != null) return slot;
         lock (_tessLock)
         {
-            _tessEngine ??= new TesseractEngine(tessDataPath, "eng", EngineMode.LstmOnly);
-            return _tessEngine;
+            slot ??= new TesseractEngine(tessDataPath, "eng", EngineMode.LstmOnly);
+            return slot;
         }
     }
 
     // ── Core Tesseract call ───────────────────────────────────────────────────
-    private static OcrResult RunTesseract(Bitmap bmp, string tessDataPath)
+    private static OcrResult RunTesseract(Bitmap bmp, string tessDataPath, bool fast = false)
     {
         var sw = Stopwatch.StartNew();
 
-        var engine = GetOrCreateTessEngine(tessDataPath);
+        var engine = GetOrCreateTessEngine(tessDataPath, fast);
 
         // Direct Bitmap → Pix without a PNG encode/decode round-trip (~30–80 ms saved)
         using var pix  = BitmapToPix(bmp);
@@ -441,6 +486,10 @@ public partial class Form1 : Form
     private void Form1_FormClosing(object? sender, FormClosingEventArgs e)
     {
         lock (_frameLock) { _currentFrame?.Dispose(); }
-        lock (_tessLock)   { _tessEngine?.Dispose(); _tessEngine = null; }
+        lock (_tessLock)
+        {
+            _tessEngine?.Dispose();     _tessEngine     = null;
+            _tessFastEngine?.Dispose(); _tessFastEngine = null;
+        }
     }
 }

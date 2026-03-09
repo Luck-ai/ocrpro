@@ -18,6 +18,8 @@
     <PackageReference Include="Sdcb.PaddleInference.runtime.win64.mkl" Version="3.1.0.54" />
     <PackageReference Include="Sdcb.PaddleOCR" Version="3.0.1" />
     <PackageReference Include="Sdcb.PaddleOCR.Models.Local" Version="3.0.1" />
+    <PackageReference Include="Sdcb.PaddleOCR.Models.LocalV5" Version="3.0.0" />
+    <PackageReference Include="Sdcb.PaddleOCR.Models.Online" Version="3.0.1" />
     <PackageReference Include="Tesseract" Version="5.2.0" />
   </ItemGroup>
 
@@ -31,6 +33,9 @@
   <!-- Copy all tessdata files to output directory -->
   <ItemGroup>
     <Content Include="tessdata\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="tessdata_best\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

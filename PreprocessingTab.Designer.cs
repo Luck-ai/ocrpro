@@ -69,6 +69,16 @@ namespace OcrTesseract
             this.trkBinThr = new System.Windows.Forms.TrackBar();
             this.lblBinThr = new System.Windows.Forms.Label();
             this.lblProptrkBinThr = new System.Windows.Forms.Label();
+            this.BrightnessContrastCard = new System.Windows.Forms.Panel();
+            this.lblTitleBrightnessContrastCard = new System.Windows.Forms.Label();
+            this.chkBrightnessContrast = new System.Windows.Forms.CheckBox();
+            this.btnApplyBrightnessContrast = new System.Windows.Forms.Button();
+            this.trkBrightness = new System.Windows.Forms.TrackBar();
+            this.lblBrightnessVal = new System.Windows.Forms.Label();
+            this.lblProptrkBrightness = new System.Windows.Forms.Label();
+            this.trkContrast = new System.Windows.Forms.TrackBar();
+            this.lblContrastVal = new System.Windows.Forms.Label();
+            this.lblProptrkContrast = new System.Windows.Forms.Label();
             ((System.ComponentModel.ISupportInitialize)(this.previewBox)).BeginInit();
             this.leftScroll.SuspendLayout();
             this.stepsFlow.SuspendLayout();
@@ -85,6 +95,9 @@ namespace OcrTesseract
             ((System.ComponentModel.ISupportInitialize)(this.trkSharpenStr)).BeginInit();
             this.BinariseCard.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.trkBinThr)).BeginInit();
+            this.BrightnessContrastCard.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.trkBrightness)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.trkContrast)).BeginInit();
             this.SuspendLayout();
 
             // stepsFlow
@@ -104,6 +117,7 @@ namespace OcrTesseract
             this.stepsFlow.Controls.Add(this.DeskewCard);
             this.stepsFlow.Controls.Add(this.SharpenCard);
             this.stepsFlow.Controls.Add(this.BinariseCard);
+            this.stepsFlow.Controls.Add(this.BrightnessContrastCard);
             this.stepsFlow.Controls.Add(this.btnApplyAll);
             this.stepsFlow.Controls.Add(this.btnUseAsOcr);
             this.stepsFlow.Controls.Add(this.btnReset);
@@ -634,6 +648,122 @@ namespace OcrTesseract
             this.lblBinThr.TabIndex = 5;
             this.lblBinThr.Text = "Otsu";
 
+            // ── BrightnessContrastCard (2 sliders, height=145, Apply at Y=106) ─
+            this.BrightnessContrastCard.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(36)))), ((int)(((byte)(39)))), ((int)(((byte)(46)))));
+            this.BrightnessContrastCard.Location = new System.Drawing.Point(0, 0);
+            this.BrightnessContrastCard.Margin = new System.Windows.Forms.Padding(0, 0, 0, 6);
+            this.BrightnessContrastCard.Name = "BrightnessContrastCard";
+            this.BrightnessContrastCard.Size = new System.Drawing.Size(320, 145);
+            this.BrightnessContrastCard.TabIndex = 0;
+            this.BrightnessContrastCard.Controls.Add(this.lblTitleBrightnessContrastCard);
+            this.BrightnessContrastCard.Controls.Add(this.chkBrightnessContrast);
+            this.BrightnessContrastCard.Controls.Add(this.btnApplyBrightnessContrast);
+            this.BrightnessContrastCard.Controls.Add(this.lblProptrkBrightness);
+            this.BrightnessContrastCard.Controls.Add(this.trkBrightness);
+            this.BrightnessContrastCard.Controls.Add(this.lblBrightnessVal);
+            this.BrightnessContrastCard.Controls.Add(this.lblProptrkContrast);
+            this.BrightnessContrastCard.Controls.Add(this.trkContrast);
+            this.BrightnessContrastCard.Controls.Add(this.lblContrastVal);
+
+            // lblTitleBrightnessContrastCard
+            this.lblTitleBrightnessContrastCard.AutoSize = true;
+            this.lblTitleBrightnessContrastCard.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            this.lblTitleBrightnessContrastCard.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(220)))), ((int)(((byte)(220)))), ((int)(((byte)(220)))));
+            this.lblTitleBrightnessContrastCard.Location = new System.Drawing.Point(10, 10);
+            this.lblTitleBrightnessContrastCard.Name = "lblTitleBrightnessContrastCard";
+            this.lblTitleBrightnessContrastCard.Size = new System.Drawing.Size(100, 15);
+            this.lblTitleBrightnessContrastCard.TabIndex = 0;
+            this.lblTitleBrightnessContrastCard.Text = "7 · Brightness / Contrast";
+
+            // chkBrightnessContrast
+            this.chkBrightnessContrast.AutoSize = true;
+            this.chkBrightnessContrast.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(36)))), ((int)(((byte)(39)))), ((int)(((byte)(46)))));
+            this.chkBrightnessContrast.Checked = false;
+            this.chkBrightnessContrast.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            this.chkBrightnessContrast.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(220)))), ((int)(((byte)(220)))), ((int)(((byte)(220)))));
+            this.chkBrightnessContrast.Location = new System.Drawing.Point(10, 30);
+            this.chkBrightnessContrast.Name = "chkBrightnessContrast";
+            this.chkBrightnessContrast.Size = new System.Drawing.Size(200, 19);
+            this.chkBrightnessContrast.TabIndex = 1;
+            this.chkBrightnessContrast.Text = "Brightness / Contrast";
+            this.chkBrightnessContrast.UseVisualStyleBackColor = false;
+
+            // btnApplyBrightnessContrast
+            this.btnApplyBrightnessContrast.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(48)))), ((int)(((byte)(52)))), ((int)(((byte)(62)))));
+            this.btnApplyBrightnessContrast.Cursor = System.Windows.Forms.Cursors.Hand;
+            this.btnApplyBrightnessContrast.FlatAppearance.BorderColor = System.Drawing.Color.FromArgb(((int)(((byte)(55)))), ((int)(((byte)(60)))), ((int)(((byte)(70)))));
+            this.btnApplyBrightnessContrast.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnApplyBrightnessContrast.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            this.btnApplyBrightnessContrast.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(220)))), ((int)(((byte)(220)))), ((int)(((byte)(220)))));
+            this.btnApplyBrightnessContrast.Location = new System.Drawing.Point(10, 106);
+            this.btnApplyBrightnessContrast.Name = "btnApplyBrightnessContrast";
+            this.btnApplyBrightnessContrast.Size = new System.Drawing.Size(300, 26);
+            this.btnApplyBrightnessContrast.TabIndex = 2;
+            this.btnApplyBrightnessContrast.Text = "Apply";
+            this.btnApplyBrightnessContrast.UseVisualStyleBackColor = false;
+
+            // lblProptrkBrightness (row 1, Y=50)
+            this.lblProptrkBrightness.AutoSize = true;
+            this.lblProptrkBrightness.Font = new System.Drawing.Font("Consolas", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            this.lblProptrkBrightness.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(140)))), ((int)(((byte)(145)))), ((int)(((byte)(155)))));
+            this.lblProptrkBrightness.Location = new System.Drawing.Point(10, 50);
+            this.lblProptrkBrightness.Name = "lblProptrkBrightness";
+            this.lblProptrkBrightness.Size = new System.Drawing.Size(65, 13);
+            this.lblProptrkBrightness.TabIndex = 3;
+            this.lblProptrkBrightness.Text = "Brightness";
+
+            // trkBrightness (row 1, Y=49)
+            this.trkBrightness.AutoSize = false;
+            this.trkBrightness.Location = new System.Drawing.Point(78, 49);
+            this.trkBrightness.Name = "trkBrightness";
+            this.trkBrightness.Size = new System.Drawing.Size(194, 22);
+            this.trkBrightness.TabIndex = 4;
+            this.trkBrightness.TickStyle = System.Windows.Forms.TickStyle.None;
+            this.trkBrightness.Minimum = -100;
+            this.trkBrightness.Maximum = 100;
+            this.trkBrightness.Value = 0;
+
+            // lblBrightnessVal (row 1)
+            this.lblBrightnessVal.AutoSize = true;
+            this.lblBrightnessVal.Font = new System.Drawing.Font("Consolas", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            this.lblBrightnessVal.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(57)))), ((int)(((byte)(255)))), ((int)(((byte)(20)))));
+            this.lblBrightnessVal.Location = new System.Drawing.Point(276, 50);
+            this.lblBrightnessVal.Name = "lblBrightnessVal";
+            this.lblBrightnessVal.Size = new System.Drawing.Size(42, 13);
+            this.lblBrightnessVal.TabIndex = 5;
+            this.lblBrightnessVal.Text = "0";
+
+            // lblProptrkContrast (row 2, Y=76)
+            this.lblProptrkContrast.AutoSize = true;
+            this.lblProptrkContrast.Font = new System.Drawing.Font("Consolas", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            this.lblProptrkContrast.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(140)))), ((int)(((byte)(145)))), ((int)(((byte)(155)))));
+            this.lblProptrkContrast.Location = new System.Drawing.Point(10, 76);
+            this.lblProptrkContrast.Name = "lblProptrkContrast";
+            this.lblProptrkContrast.Size = new System.Drawing.Size(65, 13);
+            this.lblProptrkContrast.TabIndex = 3;
+            this.lblProptrkContrast.Text = "Contrast";
+
+            // trkContrast (row 2, Y=75)
+            this.trkContrast.AutoSize = false;
+            this.trkContrast.Location = new System.Drawing.Point(78, 75);
+            this.trkContrast.Name = "trkContrast";
+            this.trkContrast.Size = new System.Drawing.Size(194, 22);
+            this.trkContrast.TabIndex = 4;
+            this.trkContrast.TickStyle = System.Windows.Forms.TickStyle.None;
+            this.trkContrast.Minimum = -100;
+            this.trkContrast.Maximum = 100;
+            this.trkContrast.Value = 0;
+
+            // lblContrastVal (row 2)
+            this.lblContrastVal.AutoSize = true;
+            this.lblContrastVal.Font = new System.Drawing.Font("Consolas", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            this.lblContrastVal.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(57)))), ((int)(((byte)(255)))), ((int)(((byte)(20)))));
+            this.lblContrastVal.Location = new System.Drawing.Point(276, 76);
+            this.lblContrastVal.Name = "lblContrastVal";
+            this.lblContrastVal.Size = new System.Drawing.Size(42, 13);
+            this.lblContrastVal.TabIndex = 5;
+            this.lblContrastVal.Text = "0";
+
             // ── leftScroll ────────────────────────────────────────────────────
             this.leftScroll.AutoScroll = true;
             this.leftScroll.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(28)))), ((int)(((byte)(30)))), ((int)(((byte)(36)))));
@@ -744,6 +874,10 @@ namespace OcrTesseract
             this.BinariseCard.ResumeLayout(false);
             this.BinariseCard.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.trkBinThr)).EndInit();
+            this.BrightnessContrastCard.ResumeLayout(false);
+            this.BrightnessContrastCard.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.trkBrightness)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.trkContrast)).EndInit();
             this.ResumeLayout(false);
         }
 
@@ -801,5 +935,15 @@ namespace OcrTesseract
         private System.Windows.Forms.TrackBar trkBinThr;
         private System.Windows.Forms.Label lblBinThr;
         private System.Windows.Forms.Label lblProptrkBinThr;
+        private System.Windows.Forms.Panel BrightnessContrastCard;
+        private System.Windows.Forms.Label lblTitleBrightnessContrastCard;
+        private System.Windows.Forms.CheckBox chkBrightnessContrast;
+        private System.Windows.Forms.Button btnApplyBrightnessContrast;
+        private System.Windows.Forms.TrackBar trkBrightness;
+        private System.Windows.Forms.Label lblBrightnessVal;
+        private System.Windows.Forms.Label lblProptrkBrightness;
+        private System.Windows.Forms.TrackBar trkContrast;
+        private System.Windows.Forms.Label lblContrastVal;
+        private System.Windows.Forms.Label lblProptrkContrast;
     }
 }
