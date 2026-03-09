@@ -45,6 +45,9 @@ namespace OcrPro;
     {
         var engine = GetOrCreateEngine(languageTag);
 
+        // Time the full pipeline: preprocessing + bitmap conversion + WinRT recognition
+        var sw = Stopwatch.StartNew();
+
         // Apply V01c preprocessing by default: Gray + CLAHE(2,t8) + Sharpen(2.5,1.5)
         // Can be overridden by caller via sharpen parameter or skipped with skipPreprocess=true.
         Bitmap? preprocessed = null;
@@ -68,8 +71,6 @@ namespace OcrPro;
         // Convert System.Drawing.Bitmap → SoftwareBitmap via direct pixel copy (no encode/decode)
         using var softBitmap = BitmapToSoftwareBitmap(bmp, padding);
 
-        // Time only the WinRT recognition call itself
-        var sw = Stopwatch.StartNew();
         var winResult = await engine.RecognizeAsync(softBitmap);
         sw.Stop();
 

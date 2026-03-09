@@ -26,7 +26,6 @@ partial class Form1
         TimingCard = new Panel();
         lblProcLabel = new Label();
         lblProcTime = new Label();
-        resultsScroll = new Panel();
         resultsFlow = new FlowLayoutPanel();
         RawOcrCard = new Panel();
         lblTitleRawOcrCard = new Label();
@@ -42,7 +41,6 @@ partial class Form1
         InputCard.SuspendLayout();
         EngineCard.SuspendLayout();
         TimingCard.SuspendLayout();
-        resultsScroll.SuspendLayout();
         RawOcrCard.SuspendLayout();
         rightPanel.SuspendLayout();
         ((System.ComponentModel.ISupportInitialize)pictureBox).BeginInit();
@@ -83,13 +81,13 @@ partial class Form1
         // 
         // leftFlow  (scrollable cards area above the button)
         // 
-        leftFlow.AutoScroll = true;
+        leftFlow.AutoScroll = false;
         leftFlow.AutoSize = false;
         leftFlow.BackColor = Color.FromArgb(28, 30, 36);
         leftFlow.Controls.Add(InputCard);
         leftFlow.Controls.Add(EngineCard);
         leftFlow.Controls.Add(TimingCard);
-        leftFlow.Controls.Add(resultsScroll);
+        leftFlow.Controls.Add(resultsFlow);
         leftFlow.Controls.Add(RawOcrCard);
         leftFlow.Dock = DockStyle.Fill;
         leftFlow.FlowDirection = FlowDirection.TopDown;
@@ -219,28 +217,16 @@ partial class Form1
         lblProcTime.Text = "—";
         lblProcTime.TextAlign = ContentAlignment.MiddleLeft;
         // 
-        // resultsScroll
+        // resultsFlow  (directly in leftFlow — width pinned by SyncResultsFlowWidth, height grows with cards)
         // 
-        resultsScroll.AutoScroll = true;
-        resultsScroll.BackColor = Color.FromArgb(28, 30, 36);
-        resultsScroll.Controls.Add(resultsFlow);
-        resultsScroll.Location = new Point(0, 511);
-        resultsScroll.Margin = new Padding(0, 0, 0, 13);
-        resultsScroll.Name = "resultsScroll";
-        resultsScroll.Size = new Size(594, 300);
-        resultsScroll.TabIndex = 0;
-        // 
-        // resultsFlow
-        // 
-        resultsFlow.AutoSize = true;
-        resultsFlow.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        resultsFlow.AutoSize = false;
         resultsFlow.BackColor = Color.FromArgb(28, 30, 36);
-        resultsFlow.Dock = DockStyle.Top;
+        resultsFlow.Dock = DockStyle.None;
         resultsFlow.FlowDirection = FlowDirection.TopDown;
-        resultsFlow.Location = new Point(0, 0);
-        resultsFlow.Margin = new Padding(6);
+        resultsFlow.Location = new Point(0, 511);
+        resultsFlow.Margin = new Padding(0, 0, 0, 13);
         resultsFlow.Name = "resultsFlow";
-        resultsFlow.Padding = new Padding(0, 4, 0, 0);
+        resultsFlow.Padding = new Padding(0, 4, 0, 4);
         resultsFlow.Size = new Size(594, 4);
         resultsFlow.TabIndex = 0;
         resultsFlow.WrapContents = false;
@@ -373,8 +359,6 @@ partial class Form1
         EngineCard.ResumeLayout(false);
         EngineCard.PerformLayout();
         TimingCard.ResumeLayout(false);
-        resultsScroll.ResumeLayout(false);
-        resultsScroll.PerformLayout();
         RawOcrCard.ResumeLayout(false);
         RawOcrCard.PerformLayout();
         rightPanel.ResumeLayout(false);
@@ -448,7 +432,6 @@ partial class Form1
     private System.Windows.Forms.Label lblProcLabel = null!;
     private System.Windows.Forms.Label lblProcTime = null!;
     private System.Windows.Forms.FlowLayoutPanel resultsFlow = null!;
-    private System.Windows.Forms.Panel resultsScroll = null!;
     private System.Windows.Forms.Button btnRunOcr = null!;
     private System.Windows.Forms.Button btnLoadImage = null!;
     private System.Windows.Forms.ComboBox cmbEngine = null!;

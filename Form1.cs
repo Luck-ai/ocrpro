@@ -52,13 +52,29 @@ public partial class Form1 : Form
         Load              += Form1_Load;
         Shown             += (_, _) => PaddleOcrEngine.WarmUpInBackground();
         FormClosing       += Form1_FormClosing;
-        resultsScroll.Resize += (_, _) => { if (_lastResult != null) RenderResultCards(_lastResult); };
-        leftFlow.ClientSizeChanged += (_, _) => SyncRawOcrCardHeight();
+        leftFlow.ClientSizeChanged += (_, _) => { SyncResultsFlowWidth(); SyncRawOcrCardHeight(); };
         leftScroll.ClientSizeChanged += (_, _) => SyncRawOcrCardHeight();
         // Hide scrollbars whenever layout is recalculated
-        resultsScroll.Layout += (_, _) => HideScrollBars(resultsScroll);
         leftFlow.Layout      += (_, _) => HideScrollBars(leftFlow);
         leftScroll.Layout    += (_, _) => HideScrollBars(leftScroll);
+    }
+
+    // Keep resultsFlow width pinned to leftFlow client width so cards fill the column,
+    // and height snapped to the sum of its child cards.
+    private void SyncResultsFlowWidth()
+    {
+        int w = leftFlow.ClientSize.Width;
+        if (resultsFlow.Width != w)
+            resultsFlow.Width = w;
+    }
+
+    private void SyncResultsFlowHeight()
+    {
+        int h = resultsFlow.Padding.Vertical;
+        foreach (Control c in resultsFlow.Controls)
+            h += c.Height + c.Margin.Vertical;
+        if (resultsFlow.Height != h)
+            resultsFlow.Height = h;
     }
 
     // Resize RawOcrCard to fill all remaining vertical space in leftFlow above the Run OCR button.
@@ -87,6 +103,7 @@ public partial class Form1 : Form
     // ═══════════════════════════════════════════════════════════════════════════
     private void Form1_Load(object? sender, EventArgs e)
     {
+        SyncResultsFlowWidth();
         // PaddleOCR warmup is triggered on Shown (after HWND is created) to avoid
         // the MKLDNN background-init deadlock that occurs when a modal dialog is open.
     }
@@ -259,29 +276,26 @@ public partial class Form1 : Form
                 ));
         }
 
-        resultsFlow.Controls.Add(BuildResultCard(
-            label:     "TIMING",
-            value:     $"{result.ElapsedMs} ms",
-            borderCol: ClrBorder
-        ));
-
         resultsFlow.ResumeLayout(true);
+        SyncResultsFlowWidth();
+        SyncResultsFlowHeight();
+        SyncRawOcrCardHeight();
     }
 
     private Panel BuildResultCard(string label, string value, Color borderCol)
     {
-        const int cardH    = 100;
+        const int cardH    = 110;
         const int leftBar  = 4;
         const int padL     = 12;
         const int padR     = 10;
-        const int rowLabel = 12;
-        const int labelH   = 22;
-        const int rowValue = 42;
-        const int valH     = 40;
+        const int rowLabel = 14;
+        const int labelH   = 26;
+        const int rowValue = 48;
+        const int valH     = 44;
 
         var card = new Panel
         {
-            Width     = Math.Max(resultsScroll.ClientSize.Width - 4, 50),
+            Width     = Math.Max(resultsFlow.Width - 4, 50),
             Height    = cardH,
             BackColor = ClrAccent,
             Margin    = new Padding(0, 0, 0, 6),
@@ -289,17 +303,17 @@ public partial class Form1 : Form
 
         void SyncWidth(object? s, EventArgs _)
         {
-            int w = Math.Max(resultsScroll.ClientSize.Width - 4, 50);
+            int w = Math.Max(resultsFlow.Width - 4, 50);
             if (card.Width != w)
             {
                 card.Width = w;
                 foreach (Control c in card.Controls)
-                    if (c.Tag is "val")
+                    if (c.Tag is "val" or "lbl")
                         c.Width = w - padL - leftBar - padR;
             }
         }
-        resultsScroll.ClientSizeChanged += SyncWidth;
-        card.Disposed += (_, _) => resultsScroll.ClientSizeChanged -= SyncWidth;
+        resultsFlow.ClientSizeChanged += SyncWidth;
+        card.Disposed += (_, _) => resultsFlow.ClientSizeChanged -= SyncWidth;
 
         card.Paint += (s, e) =>
         {
@@ -320,6 +334,7 @@ public partial class Form1 : Form
             Width        = card.Width - padL - leftBar - padR,
             Height       = labelH,
             AutoEllipsis = true,
+            Tag          = "lbl",
         };
 
         var lblVal = new Label
