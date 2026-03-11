@@ -5,7 +5,6 @@ static class Program
     [STAThread]
     static void Main(string[] _)
     {
-        // ── GUI mode ──────────────────────────────────────────────────────────
         Application.ThreadException += (_, args) =>
         {
             string crashLog = Path.Combine(
