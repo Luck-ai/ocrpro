@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 namespace OcrPro;
@@ -10,19 +9,14 @@ record OcrResult(string RawText, long ElapsedMs,
 public partial class Form1 : Form
 {
     [DllImport("user32.dll")] static extern bool ShowScrollBar(IntPtr hWnd, int wBar, bool bShow);
-    private const int SB_VERT = 1;
     private const int SB_BOTH = 3;
     private static void HideScrollBars(Control c) =>
         ShowScrollBar(c.Handle, SB_BOTH, false);
 
-    private static readonly Color ClrPanel     = Color.FromArgb(36, 39, 46);
-    private static readonly Color ClrBorder    = Color.FromArgb(55, 60, 70);
-    private static readonly Color ClrGreen     = Color.FromArgb(57, 255, 20);
-    private static readonly Color ClrGreenDim  = Color.FromArgb(0, 200, 83);
-    private static readonly Color ClrOrange    = Color.FromArgb(255, 152, 0);
-    private static readonly Color ClrText      = Color.FromArgb(220, 220, 220);
-    private static readonly Color ClrSubText   = Color.FromArgb(140, 145, 155);
-    private static readonly Color ClrAccent    = Color.FromArgb(48, 52, 62);
+    private static readonly Color ClrBorder  = Color.FromArgb(55, 60, 70);
+    private static readonly Color ClrText    = Color.FromArgb(220, 220, 220);
+    private static readonly Color ClrSubText = Color.FromArgb(140, 145, 155);
+    private static readonly Color ClrAccent  = Color.FromArgb(48, 52, 62);
 
     private static readonly Color[] RoiAccentColors =
     {
@@ -33,7 +27,6 @@ public partial class Form1 : Form
 
     private string?          _imagePath;
     private Bitmap?          _currentFrame;
-    private OcrResult?       _lastResult;
     private readonly object  _frameLock = new();
 
     public Form1()
@@ -187,7 +180,6 @@ public partial class Form1 : Form
 
             if (args.Result is OcrResult result)
             {
-                _lastResult      = result;
                 lblProcTime.Text = $"{result.ElapsedMs}ms";
                 SetProcStatus("Processing: Done");
                 RenderResultCards(result);
