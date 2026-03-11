@@ -8,48 +8,34 @@ using Windows.Media.Ocr;
 
 namespace OcrPro;
 
-/// <summary>
-    /// OCR engine backed by the Windows.Media.Ocr WinRT API.
-    /// The engine instance is created once and reused across calls (~5–20 ms per image).
-    ///
-    /// Default preprocessing pipeline: V01c — Gray+CLAHE(2,t8)+Sharp(2.5,1.5) = 50/53 All-3.
-    /// </summary>
-    static class WinRtOcrEngine
-    {
-    // Cache one engine per language tag (e.g. "en-US", "fr-FR").
+static class WinRtOcrEngine
+{
     private static readonly Dictionary<string, OcrEngine> _engines = new();
 
-    // ── V01c default preprocessing (Gray + CLAHE(2,t8) + Sharpen(2.5,1.5)) ───
     private static readonly GrayscaleParams _defaultGray    = new(true);
     private static readonly ClaheParams     _defaultClahe   = new(true, Clip: 2.0, TileSize: 8);
     private static readonly SharpenParams   _defaultSharpen = new(true, Sigma: 2.5, Strength: 1.5);
 
-    // ── Public entry point ────────────────────────────────────────────────────
+    public static void WarmUpInBackground()
+    {
+        Task.Run(() =>
+        {
+            try
+            {
+                using var bmp = new Bitmap(64, 64, PixelFormat.Format32bppArgb);
+                RunAsync(bmp).GetAwaiter().GetResult();
+            }
+            catch { }
+        });
+    }
 
-    /// <summary>
-    /// Run OCR on <paramref name="bmp"/> using Windows.Media.Ocr.
-    /// Applies V01c preprocessing by default (gray + CLAHE + sharpen).
-    /// Pass <paramref name="skipPreprocess"/> = true to bypass preprocessing.
-    /// </summary>
-    /// <param name="bmp">Source bitmap (any pixel format; converted internally).</param>
-    /// <param name="languageTag">
-    ///   BCP-47 language tag, e.g. "en-US" or "eng". Pass null / empty to use
-    ///   the user's profile languages. "eng" is normalised to "en-US".
-    /// </param>
-    /// <param name="skipPreprocess">
-    ///   If true, skip the default V01c preprocessing (useful when caller
-    ///   has already preprocessed or wants raw WinRT output).
-    /// </param>
     public static async Task<OcrResult> RunAsync(Bitmap bmp, string? languageTag = null,
         int padding = 0, SharpenParams? sharpen = null, bool skipPreprocess = false)
     {
         var engine = GetOrCreateEngine(languageTag);
 
-        // Time the full pipeline: preprocessing + bitmap conversion + WinRT recognition
         var sw = Stopwatch.StartNew();
 
-        // Apply V01c preprocessing by default: Gray + CLAHE(2,t8) + Sharpen(2.5,1.5)
-        // Can be overridden by caller via sharpen parameter or skipped with skipPreprocess=true.
         Bitmap? preprocessed = null;
         if (!skipPreprocess)
         {
@@ -63,18 +49,15 @@ namespace OcrPro;
         }
         else if (sharpen is { Enabled: true })
         {
-            // Legacy: sharpen-only path when skipPreprocess=true but sharpen supplied
             preprocessed = ImagePreprocessor.ApplySharpen(bmp, sharpen);
             bmp = preprocessed;
         }
 
-        // Convert System.Drawing.Bitmap → SoftwareBitmap via direct pixel copy (no encode/decode)
         using var softBitmap = BitmapToSoftwareBitmap(bmp, padding);
 
         var winResult = await engine.RecognizeAsync(softBitmap);
         sw.Stop();
 
-        // ── Flatten WinRT result into our WordEntry list ──────────────────────
         var words = new List<WordEntry>();
         var sb = new System.Text.StringBuilder();
 
@@ -99,27 +82,17 @@ namespace OcrPro;
 
         var rois = RoiExtractor.Extract(words);
 
-        // Rebuild raw text with OCR noise corrected in ROI-matched spans
-        // (e.g. leading tick on serial → '1', O→0/l→1 in part number)
         string correctedText = RoiExtractor.BuildCorrectedText(rawText, words);
 
         preprocessed?.Dispose();
         return new OcrResult(correctedText, sw.ElapsedMilliseconds, rois, words);
     }
 
-    // ── Availability check ────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Returns true if at least one OCR language is available on this machine.
-    /// </summary>
     public static bool IsAvailable =>
         OcrEngine.AvailableRecognizerLanguages.Count > 0;
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
-
     private static OcrEngine GetOrCreateEngine(string? languageTag)
     {
-        // Normalise Tesseract-style codes → BCP-47
         languageTag = NormaliseTag(languageTag);
 
         if (_engines.TryGetValue(languageTag, out var cached))
@@ -133,7 +106,6 @@ namespace OcrPro;
         else
         {
             engine = OcrEngine.TryCreateFromLanguage(new Language(languageTag));
-            // Fall back to user profile if the specific language isn't installed
             engine ??= OcrEngine.TryCreateFromUserProfileLanguages();
         }
 
@@ -146,10 +118,6 @@ namespace OcrPro;
         return engine;
     }
 
-    /// <summary>
-    /// Maps Tesseract 3-letter codes to BCP-47 where needed.
-    /// Unknown codes are passed through as-is (the Language ctor accepts both).
-    /// </summary>
     private static string NormaliseTag(string? tag)
     {
         if (string.IsNullOrWhiteSpace(tag)) return "";
@@ -171,19 +139,10 @@ namespace OcrPro;
         };
     }
 
-    // WinRT OCR accuracy improves significantly when text height is adequate.
-    // Upscale images whose shorter side is below this threshold so small UI text
-    // is large enough for the recogniser to handle reliably.
     private const int MinOcrDimension = 800;
 
-    /// <summary>
-    /// Converts a System.Drawing.Bitmap to a SoftwareBitmap via a single direct pixel copy.
-    /// Upscales small images so the shorter side is at least <see cref="MinOcrDimension"/> px.
-    /// Optionally adds <paramref name="padding"/> px of white border on all sides.
-    /// </summary>
     private static SoftwareBitmap BitmapToSoftwareBitmap(Bitmap bmp, int padding = 0)
     {
-        // Upscale if the shorter side is below MinOcrDimension.
         Bitmap? scaled = null;
         int shortSide = Math.Min(bmp.Width, bmp.Height);
         if (shortSide < MinOcrDimension)
@@ -198,7 +157,6 @@ namespace OcrPro;
             bmp = scaled;
         }
 
-        // Optionally add white padding around the image.
         Bitmap? padded = null;
         if (padding > 0)
         {
@@ -211,7 +169,6 @@ namespace OcrPro;
             bmp = padded;
         }
 
-        // Convert to Bgra32 if needed so the pixel layout matches BitmapPixelFormat.Bgra8.
         Bitmap? converted = null;
         if (bmp.PixelFormat != PixelFormat.Format32bppArgb)
         {
@@ -226,7 +183,6 @@ namespace OcrPro;
             int byteCount = bmp.Width * bmp.Height * 4;
             var pixels = new byte[byteCount];
 
-            // Copy pixels out of the locked GDI+ bitmap into a managed byte[]
             var srcData = bmp.LockBits(
                 new Rectangle(0, 0, bmp.Width, bmp.Height),
                 ImageLockMode.ReadOnly,
@@ -240,7 +196,6 @@ namespace OcrPro;
                 bmp.UnlockBits(srcData);
             }
 
-            // CopyFromBuffer copies the managed byte[] directly into the SoftwareBitmap pixel buffer
             var softBmp = new SoftwareBitmap(
                 BitmapPixelFormat.Bgra8, bmp.Width, bmp.Height, BitmapAlphaMode.Ignore);
             softBmp.CopyFromBuffer(pixels.AsBuffer());

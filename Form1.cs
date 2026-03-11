@@ -4,7 +4,6 @@ using System.Runtime.InteropServices;
 
 namespace OcrPro;
 
-// ── OCR result data ───────────────────────────────────────────────────────────
 record OcrResult(string RawText, long ElapsedMs,
                  IReadOnlyList<RoiMatch> Rois, IReadOnlyList<WordEntry> Words);
 
@@ -15,7 +14,7 @@ public partial class Form1 : Form
     private const int SB_BOTH = 3;
     private static void HideScrollBars(Control c) =>
         ShowScrollBar(c.Handle, SB_BOTH, false);
-    // ── Colours reused for result cards ──────────────────────────────────────
+
     private static readonly Color ClrPanel     = Color.FromArgb(36, 39, 46);
     private static readonly Color ClrBorder    = Color.FromArgb(55, 60, 70);
     private static readonly Color ClrGreen     = Color.FromArgb(57, 255, 20);
@@ -25,42 +24,30 @@ public partial class Form1 : Form
     private static readonly Color ClrSubText   = Color.FromArgb(140, 145, 155);
     private static readonly Color ClrAccent    = Color.FromArgb(48, 52, 62);
 
-    // ROI accent colours (one per slot)
     private static readonly Color[] RoiAccentColors =
     {
-        Color.FromArgb(57, 255, 20),   // ROI A – green
-        Color.FromArgb(0,  180, 255),  // ROI B – cyan
-        Color.FromArgb(255, 152,  0),  // ROI C – orange
+        Color.FromArgb(57, 255, 20),
+        Color.FromArgb(0,  180, 255),
+        Color.FromArgb(255, 152,  0),
     };
 
-    // ── State ─────────────────────────────────────────────────────────────────
     private string?          _imagePath;
     private Bitmap?          _currentFrame;
     private OcrResult?       _lastResult;
     private readonly object  _frameLock = new();
 
-    // Which engine index maps to which type (matches cmbEngine order)
-    private static readonly OcrEngineType[] EngineOrder =
-    {
-        OcrEngineType.WinRt,
-        OcrEngineType.PaddleOcr,
-    };
-
     public Form1()
     {
         InitializeComponent();
         Load              += Form1_Load;
-        Shown             += (_, _) => PaddleOcrEngine.WarmUpInBackground();
+        Shown             += (_, _) => WinRtOcrEngine.WarmUpInBackground();
         FormClosing       += Form1_FormClosing;
         leftFlow.ClientSizeChanged += (_, _) => { SyncResultsFlowWidth(); SyncRawOcrCardHeight(); };
         leftScroll.ClientSizeChanged += (_, _) => SyncRawOcrCardHeight();
-        // Hide scrollbars whenever layout is recalculated
         leftFlow.Layout      += (_, _) => HideScrollBars(leftFlow);
         leftScroll.Layout    += (_, _) => HideScrollBars(leftScroll);
     }
 
-    // Keep resultsFlow width pinned to leftFlow client width so cards fill the column,
-    // and height snapped to the sum of its child cards.
     private void SyncResultsFlowWidth()
     {
         int w = leftFlow.ClientSize.Width;
@@ -77,10 +64,8 @@ public partial class Form1 : Form
             resultsFlow.Height = h;
     }
 
-    // Resize RawOcrCard to fill all remaining vertical space in leftFlow above the Run OCR button.
     private void SyncRawOcrCardHeight()
     {
-        // Sum the heights of all cards above RawOcrCard
         int used = 0;
         foreach (Control c in leftFlow.Controls)
         {
@@ -94,31 +79,20 @@ public partial class Form1 : Form
 
         if (RawOcrCard.Height == newCardH) return;
         RawOcrCard.Height = newCardH;
-        // txtRawOcr fills the card below the title label
         txtRawOcr.Height = Math.Max(newCardH - 64 - 16, 40);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // LOAD
-    // ═══════════════════════════════════════════════════════════════════════════
     private void Form1_Load(object? sender, EventArgs e)
     {
         SyncResultsFlowWidth();
-        // PaddleOCR warmup is triggered on Shown (after HWND is created) to avoid
-        // the MKLDNN background-init deadlock that occurs when a modal dialog is open.
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // LOAD IMAGE (file)
-    // ═══════════════════════════════════════════════════════════════════════════
     private async void btnLoadImage_Click(object? sender, EventArgs e)
     {
         btnLoadImage.Enabled = false;
         string? path = null;
         try
         {
-            // Run OpenFileDialog on its own STA thread so the Vista-style shell
-            // dialog cannot deadlock the main UI message pump.
             var tcs = new TaskCompletionSource<string?>();
             var t = new Thread(() =>
             {
@@ -162,9 +136,6 @@ public partial class Form1 : Form
         SetProcStatus("Processing: Image loaded");
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // RUN OCR
-    // ═══════════════════════════════════════════════════════════════════════════
     private void btnRunOcr_Click(object? sender, EventArgs e)
     {
         if (_currentFrame == null)
@@ -190,23 +161,15 @@ public partial class Form1 : Form
 
     private void RunOcrOnBitmap(Bitmap snapshot)
     {
-        var engineType = EngineOrder[Math.Clamp(cmbEngine.SelectedIndex, 0, EngineOrder.Length - 1)];
-
         btnRunOcr.Enabled  = false;
         SetProcStatus("Processing: Running OCR…");
         lblProcTime.Text = "…";
         ClearResultCards();
 
-        // Run OCR on background thread so UI stays responsive
         var worker = new BackgroundWorker();
         worker.DoWork += (_, args) =>
         {
-            args.Result = engineType switch
-            {
-                OcrEngineType.WinRt    => WinRtOcrEngine.RunAsync(snapshot).GetAwaiter().GetResult(),
-                OcrEngineType.PaddleOcr => PaddleOcrEngine.Run(snapshot),
-                _ => WinRtOcrEngine.RunAsync(snapshot).GetAwaiter().GetResult(),
-            };
+            args.Result = WinRtOcrEngine.RunAsync(snapshot).GetAwaiter().GetResult();
         };
         worker.RunWorkerCompleted += (_, args) =>
         {
@@ -236,9 +199,6 @@ public partial class Form1 : Form
         worker.RunWorkerAsync();
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // RESULT CARDS
-    // ═══════════════════════════════════════════════════════════════════════════
     private void ClearResultCards() => resultsFlow.Controls.Clear();
 
     private void RenderResultCards(OcrResult result)
@@ -356,9 +316,6 @@ public partial class Form1 : Form
         return card;
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // HELPERS
-    // ═══════════════════════════════════════════════════════════════════════════
     private void SetProcStatus(string text)
     {
         if (lblProcStatus.IsHandleCreated)
@@ -367,9 +324,6 @@ public partial class Form1 : Form
             lblProcStatus.Text = text;
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // CLEANUP
-    // ═══════════════════════════════════════════════════════════════════════════
     private void Form1_FormClosing(object? sender, FormClosingEventArgs e)
     {
         lock (_frameLock) { _currentFrame?.Dispose(); }
