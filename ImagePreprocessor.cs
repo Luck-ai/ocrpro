@@ -75,4 +75,27 @@ internal static class ImagePreprocessor
         }
         return mat.ToBitmap();
     }
+
+    /// <summary>
+    /// Rotates a bitmap by the given multiple of 90 degrees clockwise.
+    /// <paramref name="steps"/> must be 0, 1, 2, or 3.
+    /// </summary>
+    public static Bitmap Rotate90(Bitmap src, int steps)
+    {
+        steps = ((steps % 4) + 4) % 4;
+        if (steps == 0) return (Bitmap)src.Clone();
+
+        using var mat = BitmapToMat(src);
+        using var dst = new Mat();
+
+        var code = steps switch
+        {
+            1 => RotateFlags.Rotate90Clockwise,
+            2 => RotateFlags.Rotate180,
+            3 => RotateFlags.Rotate90CounterClockwise,
+            _ => throw new ArgumentOutOfRangeException(nameof(steps))
+        };
+        CvInvoke.Rotate(mat, dst, code);
+        return MatToBitmap(dst);
+    }
 }

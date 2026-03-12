@@ -36,6 +36,7 @@ static class WinRtOcrEngine
 
         var sw = Stopwatch.StartNew();
 
+        // --- Preprocessing (grayscale + CLAHE + sharpen) on the original orientation ---
         Bitmap? preprocessed = null;
         if (!skipPreprocess)
         {
@@ -53,13 +54,62 @@ static class WinRtOcrEngine
             bmp = preprocessed;
         }
 
-        using var softBitmap = BitmapToSoftwareBitmap(bmp, padding);
+        // --- First pass at 0° ---
+        var (words0, raw0) = await RecognizeWordsAsync(engine, bmp, padding);
+        var rois0 = RoiExtractor.Extract(words0);
 
-        var winResult = await engine.RecognizeAsync(softBitmap);
+        // If we already found structured ROIs, use this result immediately.
+        if (rois0.Count > 0)
+        {
+            sw.Stop();
+            preprocessed?.Dispose();
+            return new OcrResult(
+                RoiExtractor.BuildCorrectedText(raw0, words0),
+                sw.ElapsedMilliseconds, rois0, words0);
+        }
+
+        // --- Rotation recovery: try 90°, 270°, 180° ---
+        // Pick the rotation that yields the most recognised words (best text coverage).
+        var best      = (words: words0, raw: raw0, rois: rois0, steps: 0);
+        int bestCount = words0.Count;
+
+        foreach (int steps in new[] { 1, 3, 2 })   // 90°CW, 90°CCW, 180°
+        {
+            using var rotated = ImagePreprocessor.Rotate90(bmp, steps);
+            var (wRot, rRot) = await RecognizeWordsAsync(engine, rotated, padding);
+            var roisRot = RoiExtractor.Extract(wRot);
+
+            // Prefer a rotation that produces structured ROIs.
+            if (roisRot.Count > best.rois.Count ||
+                (roisRot.Count == best.rois.Count && wRot.Count > bestCount))
+            {
+                best      = (wRot, rRot, roisRot, steps);
+                bestCount = wRot.Count;
+            }
+
+            // Stop early once we found a rotation with ROIs.
+            if (roisRot.Count > 0) break;
+        }
+
         sw.Stop();
+        preprocessed?.Dispose();
+        return new OcrResult(
+            RoiExtractor.BuildCorrectedText(best.raw, best.words),
+            sw.ElapsedMilliseconds, best.rois, best.words);
+    }
+
+    /// <summary>
+    /// Runs the WinRT OCR engine on <paramref name="bmp"/> and returns the word list
+    /// and raw joined text without any further preprocessing.
+    /// </summary>
+    private static async Task<(List<WordEntry> words, string raw)> RecognizeWordsAsync(
+        OcrEngine engine, Bitmap bmp, int padding)
+    {
+        using var softBitmap = BitmapToSoftwareBitmap(bmp, padding);
+        var winResult = await engine.RecognizeAsync(softBitmap);
 
         var words = new List<WordEntry>();
-        var sb = new System.Text.StringBuilder();
+        var sb    = new System.Text.StringBuilder();
 
         foreach (var line in winResult.Lines)
         {
@@ -78,14 +128,7 @@ static class WinRtOcrEngine
             }
         }
 
-        string rawText = sb.ToString();
-
-        var rois = RoiExtractor.Extract(words);
-
-        string correctedText = RoiExtractor.BuildCorrectedText(rawText, words);
-
-        preprocessed?.Dispose();
-        return new OcrResult(correctedText, sw.ElapsedMilliseconds, rois, words);
+        return (words, sb.ToString());
     }
 
     public static bool IsAvailable =>
