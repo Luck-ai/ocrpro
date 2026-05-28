@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🔎 WinRT-OCR (OcrPro)
+# 🔎 OcrPro
 
 **A Windows desktop OCR tool that pairs the built-in Windows.Media.Ocr engine with OpenCV preprocessing and ROI/field extraction.**
 
